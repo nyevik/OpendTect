@@ -96,7 +96,7 @@ public:
 
 				// Interaction stuff
     BinIDValueSet&		genDef()		{ return gendef_; }
-    MultiID			pickSetID() const	{ return picksetid_; }
+    const TypeSet<MultiID>&	pickSetIDs() const	{ return picksetids_; }
 
     ObjectSet<SurfaceInfo>&	horInfos()		{ return hinfos_; }
     const ObjectSet<MultiID>&	selHorIDs() const	{ return selhorids_; }
@@ -119,7 +119,7 @@ protected:
     ObjectSet<MultiID>		selhorids_;
     TrcKeySampling		selhs_;
     RefMan<Pick::Set>		ps_;
-    MultiID			picksetid_;
+    TypeSet<MultiID>		picksetids_;
     MultiID			horid_;
 
     TypeSet<BufferStringSet>	linenms_;

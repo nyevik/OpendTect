@@ -8,6 +8,9 @@ ________________________________________________________________________
 
 -*/
 
+#include "ioobj.h"
+#include "pickset.h"
+#include "randcolor.h"
 #include "uiiomod.h"
 #include "uidialog.h"
 #include "uigroup.h"
@@ -15,6 +18,8 @@ ________________________________________________________________________
 #include "factory.h"
 #include "multiid.h"
 #include "uicoordsystem.h"
+#include "uiioobjselgrp.h"
+
 
 class uiCheckBox;
 class uiColorInput;
@@ -27,6 +32,10 @@ class uiLabeledComboBox;
 class uiPickPartServer;
 class uiTableImpDataSel;
 namespace Table { class FormatDesc; }
+namespace Pick { class Set; }
+
+
+constexpr const char* sKeyImportHint()	    { return "Import Hint"; }
 
 /*! \brief Dialog for pickset selection */
 
@@ -45,19 +54,36 @@ public:
     virtual bool	doImport(bool dodisplay)			= 0;
     virtual bool	triggerImportReady() const			= 0;
     virtual TypeSet<MultiID> storedIDs() const				= 0;
+
+    bool		isPointSet() const;
+    bool		isPolyLine() const;
     bool		isPolygon() const;
+    uiString		getPointSetShape();
+
+    int			getImportCount();
+    void		resetImportCount();
+
+    bool		handleDuplicateNames(ObjectSet<Pick::Set>& pointsets,
+					     BufferStringSet& duplicatenames);
+    bool		setToNextAvailableName(Pick::Set&);
+    uiRetVal		addPointSet(Pick::Set&,IOObj* ioobj=nullptr,
+				    OD::Color col=OD::getRandomFillColor());
+    void		displayPointSet(Pick::Set&,MultiID);
+
 
 protected:
 			uiPickSetImportGroup(uiParent*);
 
-    uiGenInput*		polyfld_			= nullptr;
+    uiGenInput*		shapefld_			= nullptr;
     uiLabeledComboBox*	zfld_				= nullptr;
     uiLabeledComboBox*	horinpfld_			= nullptr;
     uiGenInput*		constzfld_			= nullptr;
     uiTableImpDataSel*	dataselfld_			= nullptr;
     uiFileInput*	filefld_;
+    int			impcount_			= 0;
+    bool		importready_			= false;
 
-    uiPickPartServer*	serv_					= nullptr;
+    uiPickPartServer*	serv_				= nullptr;
 };
 
 
@@ -65,9 +91,10 @@ mExpClass(uiIo) uiSinglePickSetImportGroup : public uiPickSetImportGroup
 {
 mODTextTranslationClass(uiSinglePickSetImportGroup)
 public:
-mDefaultFactoryInstantiation1Param(uiPickSetImportGroup,
-		uiSinglePickSetImportGroup,uiParent*,
-		"single_pickset",toUiString("Single PickSet"));
+			mDefaultFactoryInstantiation1Param(uiPickSetImportGroup,
+					uiSinglePickSetImportGroup,uiParent*,
+					"single_pickset",
+					toUiString("Single PointSet"));
 
 			~uiSinglePickSetImportGroup();
 
@@ -85,11 +112,9 @@ protected:
     void		formatSel(CallBacker*);
     bool		checkInpFlds();
 
-    Table::FormatDesc&  fd_;
+    Table::FormatDesc*	fd_				= nullptr;
     MultiID		storedid_			= MultiID::udf();
-    bool		importready_			= false;
 };
-
 
 
 mExpClass(uiIo) uiImportPickSet : public uiDialog
@@ -99,17 +124,68 @@ public:
 			uiImportPickSet(uiParent*,uiPickPartServer*);
 			~uiImportPickSet();
 
-    MultiID		getStoredID() const;
+    TypeSet<MultiID>	getStoredIDs() const;
 
     Notifier<uiImportPickSet> importReady;
 
 protected:
-    uiComboBox*			optionfld_;
+    uiComboBox*			    optionfld_		= nullptr;
     ObjectSet<uiPickSetImportGroup> groups_;
 
     void		optionSelCB(CallBacker*);
     bool		acceptOK(CallBacker*) override;
 
+};
+
+
+mExpClass(uiIo) uiPickSetExportGroup : public uiGroup
+{
+mODTextTranslationClass(uiExpPickSetGroup)
+public:
+			mDefineFactory1ParamInClass(uiPickSetExportGroup,
+						    uiParent*,factory);
+
+			~uiPickSetExportGroup();
+
+    virtual bool	init();
+
+    virtual bool	doExport()					= 0;
+
+    // int		getExportCount();
+    // void		resetExportCount();
+    virtual bool	checkInpFlds()					= 0;
+
+    virtual bool	triggerExportReady() const			= 0;
+
+
+protected:
+			    uiPickSetExportGroup(uiParent*);
+
+    uiFileInput*	      outputfilefld_;
+    Coords::uiCoordSystemSel* coordsysselfld_		= nullptr;
+    bool		    exportready_		= false;
+};
+
+
+mExpClass(uiIo) uiSinglePickSetExportGroup : public uiPickSetExportGroup
+{
+mODTextTranslationClass(uiSinglePickSetExportGroup)
+public:
+			mDefaultFactoryInstantiation1Param(uiPickSetExportGroup,
+				       uiSinglePickSetExportGroup,uiParent*,
+				       "single_pickset_export",
+				       toUiString("Single PointSet"));
+
+			~uiSinglePickSetExportGroup();
+
+protected:
+			uiSinglePickSetExportGroup(uiParent*);
+    bool		doExport() override;
+    bool		checkInpFlds() override;
+    bool		triggerExportReady() const override
+			{ return exportready_; }
+
+    uiIOObjSel*		objfld_				= nullptr;
 };
 
 

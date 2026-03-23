@@ -511,10 +511,7 @@ bool IODir::ensureUniqueName( IOObj& ioobj )
 
     int nr = 1;
     while ( get(nm.buf(),ioobj.group().buf()) )
-    {
-	nr++;
-	nm.set( ioobj.name() ).add( " (" ).add( nr ).add( ")" );
-    }
+	nm.set( ioobj.name() ).add( " (" ).add( nr++ ).add( ")" );
 
     if ( nr == 1 )
 	return false;

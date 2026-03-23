@@ -9,11 +9,14 @@ ________________________________________________________________________
 
 #include "uiimppickset.h"
 
+#include "oddirs.h"
+#include "separstr.h"
 #include "uicolor.h"
 #include "uicombobox.h"
 #include "uifileinput.h"
 #include "uigeninput.h"
 #include "uiioobjsel.h"
+#include "uilabel.h"
 #include "uimsg.h"
 #include "uipickpartserv.h"
 #include "uiseparator.h"
@@ -23,18 +26,20 @@ ________________________________________________________________________
 #include "ctxtioobj.h"
 #include "file.h"
 #include "filepath.h"
+#include "iodir.h"
+#include "iodirentry.h"
 #include "ioman.h"
 #include "ioobj.h"
+#include "od_helpids.h"
+#include "od_istream.h"
+#include "od_ostream.h"
+#include "picklocation.h"
 #include "pickset.h"
 #include "picksettr.h"
 #include "randcolor.h"
-#include "od_istream.h"
-#include "od_ostream.h"
 #include "surfaceinfo.h"
 #include "survinfo.h"
 #include "tabledef.h"
-#include "od_helpids.h"
-#include "picklocation.h"
 
 #include <math.h>
 
@@ -75,9 +80,207 @@ bool uiPickSetImportGroup::init()
 }
 
 
+bool uiPickSetImportGroup::handleDuplicateNames(
+						ObjectSet<Pick::Set>& pointsets,
+					       BufferStringSet& duplicatenames )
+{
+    CtxtIOObj ctio( mIOObjContext(PickSet) );
+    const IOObjContext ctxt = ctio.ctxt_;
+    const IODir iodir( ctxt.getSelKey() ) ;
+    const IODirEntryList pointsetlist( iodir, ctxt );
+    BufferStringSet existingpointsetnames;
+    pointsetlist.getIOObjNames( existingpointsetnames );
+
+    for ( const auto* pointset : pointsets )
+    {
+	const BufferString pointsetname = pointset->name();
+	if( existingpointsetnames.isPresent(pointsetname) )
+	    duplicatenames.add( pointsetname );
+    }
+
+    if ( !duplicatenames.isEmpty() )
+    {
+	const uiString shape = getPointSetShape();
+	const int duplicatesize = duplicatenames.size();
+
+	return uiMSG().askGoOn( tr("The following %1 name%2 already exist%3 in "
+				  "the survey: %4\n\nDo you still want"
+				  " to add %5?\n(If added, %6 will appear"
+				  " as \"name (#)\")")
+				   .arg( shape )
+				   .arg( duplicatesize == 1 ? "" : "s" )
+				   .arg( duplicatesize == 1 ? "s" : "" )
+				   .arg( duplicatenames.getDispString(10) )
+				   .arg( duplicatesize == 1 ? "it" : "them" )
+				   .arg( duplicatesize == 1 ? "it" : "they" ),
+			       tr("Add"),tr("Skip") );
+    }
+
+    return true;
+}
+
+
+bool uiPickSetImportGroup::setToNextAvailableName( Pick::Set& pointset )
+{
+    BufferString currentname = pointset.name(), tempname;
+    int filenumber = 1;
+
+    CtxtIOObj ctio( mIOObjContext(PickSet) );
+    const IOObjContext ctxt = ctio.ctxt_;
+    const IODir iodir( ctxt.getSelKey() ) ;
+    const IODirEntryList pointsetlist( iodir, ctxt );
+    BufferStringSet existingpicksetnames;
+    pointsetlist.getIOObjNames( existingpicksetnames );
+
+    while ( filenumber<999 )
+    {
+	tempname = currentname;
+	tempname.add( " (" ).add( filenumber++ ).add(")");
+	if ( !existingpicksetnames.isPresent(tempname) )
+	    break;
+    }
+
+    if ( filenumber==999 )
+	return false;
+
+    pointset.setName( tempname );
+    return true;
+}
+
+
+static IOObj* mkEntry( const CtxtIOObj& ctio, const char* nm )
+{
+    CtxtIOObj newctio( ctio );
+    newctio.ioobj_ = nullptr;
+    newctio.setName( nm );
+    newctio.fillObj();
+    return newctio.ioobj_;
+}
+
+
+uiRetVal uiPickSetImportGroup::addPointSet( Pick::Set& pointset, IOObj* ioobj,
+					    OD::Color col )
+{
+    const int seloption = shapefld_->getIntValue();
+    const bool ispoly = seloption==1 || seloption==2;
+    const int pointsetsize = pointset.size();
+    const BufferString pointsetname = pointset.getName();
+
+    if ( (pointsetsize < 2 && seloption==1)
+	 || (pointsetsize < 3 && seloption==2) )
+    {
+	const uiString msg = tr("- Cannot import %1 since it has %2 point%3 "
+				"but needs at least %4 points to be imported "
+				"as a %5")
+			       .arg( pointsetname.buf() ).arg( pointsetsize )
+			       .arg( pointsetsize == 1 ? "" : "s" )
+			       .arg( seloption == 1 ? "2" : "3" )
+			       .arg( getPointSetShape() );
+	return msg;
+    }
+
+    if ( zfld_->box()->currentItem() == 2 )
+	serv_->fillZValsFromHor( pointset, horinpfld_->box()->currentItem() );
+
+    if ( !ioobj )
+    {
+	CtxtIOObj ctio( mIOObjContext(PickSet) );
+	ioobj = mkEntry( ctio, pointsetname.buf() );
+
+	if ( ispoly )
+	    pointset.convertToPolygon();
+
+	pointset.setDefaultDispPars( ispoly );
+    }
+
+    pointset.disp3d().markerstyle_.color_ = col;
+
+    if ( ispoly )
+    {
+	pointset.disp3d().polyDisp()->connect_ = seloption==1
+						 ? Pick::Set::Connection::Open
+						 : Pick::Set::Connection::Close;
+	pointset.disp3d().polyDisp()->linestyle_.color_ = col;
+	ioobj->pars().set( sKey::Type(), sKey::Polygon() );
+
+	if ( seloption==2 )
+	    pointset.findStartIdxs();
+    }
+    else
+	ioobj->pars().set(sKey::Type(), PickSetTranslatorGroup::sKeyPickSet());
+
+    IOM().commitChanges( *ioobj );
+    uiString errmsg;
+    if ( !PickSetTranslator::store(pointset,ioobj,errmsg) )
+	 return errmsg;
+
+    storedIDs().add( ioobj->key() );
+    return uiRetVal::OK();
+}
+
+
+void uiPickSetImportGroup::displayPointSet( Pick::Set& ps, MultiID mid )
+{
+    Pick::SetMgr& psmgr = Pick::Mgr();
+    int setidx = psmgr.indexOf( mid );
+    if ( setidx < 0 )
+    {
+	auto* newps = new Pick::Set( ps );
+	psmgr.set( mid, newps );
+	setidx = psmgr.indexOf( mid );
+	importready_ = true;
+    }
+    else
+    {
+	RefMan<Pick::Set> oldps = psmgr.get( setidx );
+	*oldps = ps;
+	psmgr.reportChange( nullptr, *oldps );
+	psmgr.reportDispChange( nullptr, *oldps );
+    }
+
+    psmgr.setUnChanged( setidx, true );
+}
+
+
+bool uiPickSetImportGroup::isPointSet() const
+{
+    return shapefld_ && shapefld_->getIntValue()==0;
+}
+
+
+bool uiPickSetImportGroup::isPolyLine() const
+{
+    return shapefld_ && shapefld_->getIntValue()==1;
+}
+
+
 bool uiPickSetImportGroup::isPolygon() const
 {
-    return polyfld_ && polyfld_->isChecked();
+    return shapefld_ && shapefld_->getIntValue()==2;
+}
+
+
+uiString uiPickSetImportGroup::getPointSetShape()
+{
+    switch ( shapefld_->getIntValue() )
+    {
+	case 0: return uiStrings::sPointSet();
+	case 1: return uiStrings::sPolyLine();
+	case 2: return uiStrings::sPolygon();
+	default: return uiStrings::sEmptyString();
+    }
+}
+
+
+int uiPickSetImportGroup::getImportCount()
+{
+    return impcount_;
+}
+
+
+void uiPickSetImportGroup::resetImportCount()
+{
+    impcount_ = 0;
 }
 
 
@@ -86,18 +289,17 @@ static const char* zoptions[] =
     "Input file",
     "Constant Z",
     "Horizon",
-    0
+    nullptr
 };
 
 
-
-static uiString sPicksetPolygon() { return toUiString("Pointset/Polygon"); }
-
 uiSinglePickSetImportGroup::uiSinglePickSetImportGroup( uiParent* p )
     : uiPickSetImportGroup(p)
-    , fd_(*PickSetAscIO::getDesc(true))
+    , fd_(PickSetAscIO::getDesc(true))
 {
     filefld_ = new uiASCIIFileInput( this, true );
+    filefld_->setSelectMode( uiFileDialog::ExistingFile );
+    filefld_->setDefaultSelectionDir( GetSurveyProcDir() );
     mAttachCB( filefld_->valueChanged, uiSinglePickSetImportGroup::inputChgd );
     setHAlignObj( filefld_ );
 
@@ -105,11 +307,11 @@ uiSinglePickSetImportGroup::uiSinglePickSetImportGroup( uiParent* p )
     ctxt.forread_ = false;
 
     zfld_ = new uiLabeledComboBox( this, zoptions, tr("Get Z values from") );
-    zfld_->box()->selectionChanged.notify(
-		mCB(this,uiSinglePickSetImportGroup,formatSel) );
+    mAttachCB( zfld_->box()->selectionChanged,
+	       uiSinglePickSetImportGroup::formatSel );
     zfld_->attach( alignedBelow, filefld_ );
 
-    uiString constzlbl = tr("Specify constant Z value %1")
+    const uiString constzlbl = tr("Specify constant Z value %1")
 				.arg( SI().getZUnitString() );
     constzfld_ = new uiGenInput( this, constzlbl, FloatInpSpec(0) );
     constzfld_->attach( rightTo, zfld_ );
@@ -121,25 +323,25 @@ uiSinglePickSetImportGroup::uiSinglePickSetImportGroup( uiParent* p )
     horinpfld_->display( zfld_->box()->currentItem() == 2 );
     horinpfld_->box()->setHSzPol( uiObject::MedVar );
 
-    uiStringSet impoptions;
-    impoptions.add( uiStrings::sPointSet() ).add( uiStrings::sPolyLine() )
-	      .add( uiStrings::sPolygon() );
-    polyfld_ = new uiGenInput( this, tr("Import as"),
+    const uiStringSet impoptions { uiStrings::sPointSet(),
+				   uiStrings::sPolyLine(),
+				   uiStrings::sPolygon() };
+    shapefld_ = new uiGenInput( this, tr("Import as"),
 			       StringListInpSpec(impoptions) );
-    polyfld_->attach( alignedBelow, zfld_ );
+    shapefld_->attach( alignedBelow, zfld_ );
 
-    uiSeparator* sep = new uiSeparator( this, "H sep" );
-    sep->attach( stretchedBelow, polyfld_ );
+    auto* sep = new uiSeparator( this, "H sep" );
+    sep->attach( stretchedBelow, shapefld_ );
 
-    dataselfld_ = new uiTableImpDataSel( this, fd_,
+    dataselfld_ = new uiTableImpDataSel( this, *fd_,
 		      mODHelpKey(mTableImpDataSelpicksHelpID) );
-    dataselfld_->attach( alignedBelow, polyfld_ );
+    dataselfld_->attach( alignedBelow, shapefld_ );
     dataselfld_->attach( ensureBelow, sep );
 
     sep = new uiSeparator( this, "H sep" );
     sep->attach( stretchedBelow, dataselfld_ );
 
-    uiString label = uiStrings::phrOutput( sPicksetPolygon() );
+    const auto label = uiStrings::phrOutput( uiStrings::sPicksetPolygon() );
     uiIOObjSel::Setup ioobjsetup( label );
     ioobjsetup.withinserters(false).withwriteopts(false);
     objfld_ = new uiIOObjSel( this, ctxt, ioobjsetup );
@@ -147,8 +349,8 @@ uiSinglePickSetImportGroup::uiSinglePickSetImportGroup( uiParent* p )
     objfld_->attach( ensureBelow, sep );
 
     colorfld_ = new uiColorInput( this,
-			uiColorInput::Setup(OD::getRandStdDrawColor())
-			    .lbltxt(uiStrings::sColor()) );
+				  uiColorInput::Setup(OD::getRandStdDrawColor())
+						.lbltxt(uiStrings::sColor()) );
     colorfld_->attach( alignedBelow, objfld_ );
 }
 
@@ -156,6 +358,7 @@ uiSinglePickSetImportGroup::uiSinglePickSetImportGroup( uiParent* p )
 uiSinglePickSetImportGroup::~uiSinglePickSetImportGroup()
 {
     detachAllNotifiers();
+    delete fd_;
 }
 
 
@@ -173,7 +376,7 @@ void uiSinglePickSetImportGroup::formatSel( CallBacker* )
     const bool iszreq = zchoice == 0;
     constzfld_->display( zchoice == 1 );
     horinpfld_->display( zchoice == 2 );
-    PickSetAscIO::updateDesc( fd_, iszreq );
+    PickSetAscIO::updateDesc( *fd_, iszreq );
     dataselfld_->updateSummary();
 }
 
@@ -191,7 +394,7 @@ bool uiSinglePickSetImportGroup::doImport( bool display_on_import )
 	mErrRet( tr("Could not open input file") )
 
     const char* psnm = objfld_->getInput();
-    const int seloption = polyfld_->getIntValue();
+    const int seloption = shapefld_->getIntValue();
     const bool ispoly = seloption == 1 || seloption == 2;
     RefMan<Pick::Set> ps = new Pick::Set( psnm, ispoly );
     const int zchoice = zfld_->box()->currentItem();
@@ -199,59 +402,22 @@ bool uiSinglePickSetImportGroup::doImport( bool display_on_import )
     if ( SI().zIsTime() )
 	constz /= 1000;
 
-    ps->disp3d().markerstyle_.color_ = colorfld_->color();
-    PickSetAscIO aio( fd_ );
+    PickSetAscIO aio( *fd_ );
     aio.get( strm, *ps, zchoice==0, constz );
-
-    if ( zchoice == 2 )
-	serv_->fillZValsFromHor( *ps, horinpfld_->box()->currentItem() );
 
     const IOObj* objfldioobj = objfld_->ioobj();
     if ( !objfldioobj )
 	return false;
 
     PtrMan<IOObj> ioobj = objfldioobj->clone();
-    if ( seloption==0 )
-	ioobj->pars().set(sKey::Type(), PickSetTranslatorGroup::sKeyPickSet());
-    else
-    {
-	ps->disp3d().polyDisp()->connect_ = seloption==1
-					  ? Pick::Set::Connection::Open
-					  : Pick::Set::Connection::Close;
-	ps->disp3d().polyDisp()->linestyle_.color_ = colorfld_->color();
-	ioobj->pars().set( sKey::Type(), sKey::Polygon() );
+    auto ret = addPointSet( *ps, ioobj.ptr(), colorfld_->color() );
+    if ( !ret.isOK() )
+	mErrRet( ret );
 
-	if ( seloption==2 )
-	    ps->findStartIdxs();
-    }
-
-    IOM().commitChanges( *ioobj );
-    uiString errmsg;
-    if ( !PickSetTranslator::store(*ps,ioobj.ptr(),errmsg) )
-	mErrRet( errmsg )
-
-    storedid_ = ioobj->key();
     if ( display_on_import )
-    {
-	Pick::SetMgr& psmgr = Pick::Mgr();
-	int setidx = psmgr.indexOf( storedid_ );
-	if ( setidx < 0 )
-	{
-	    Pick::Set* newps = new Pick::Set( *ps );
-	    psmgr.set( storedid_, newps );
-	    setidx = psmgr.indexOf( storedid_ );
-	    importready_ = true;
-	}
-	else
-	{
-	    RefMan<Pick::Set> oldps = psmgr.get( setidx );
-	    *oldps = *ps;
-	    psmgr.reportChange( nullptr, *oldps );
-	    psmgr.reportDispChange( nullptr, *oldps );
-	}
+	displayPointSet( *ps, storedid_ );
 
-	psmgr.setUnChanged( setidx, true );
-    }
+    impcount_++;
 
     return true;
 }
@@ -274,7 +440,8 @@ bool uiSinglePickSetImportGroup::checkInpFlds()
     if ( zchoice == 1 )
     {
 	float constz = constzfld_->getFValue();
-	if ( SI().zIsTime() ) constz /= 1000;
+	if ( SI().zIsTime() )
+	    constz /= 1000;
 
 	if ( !SI().zRange(false).includes( constz,false ) )
 	    mErrRet( tr("Please enter a valid Z value") )
@@ -292,21 +459,34 @@ TypeSet<MultiID> uiSinglePickSetImportGroup::storedIDs() const
 }
 
 
-
 uiImportPickSet::uiImportPickSet( uiParent* p, uiPickPartServer* pps )
     : uiDialog( p,
-		Setup( uiStrings::phrImport(sPicksetPolygon()),
+		Setup( uiStrings::phrImport(uiStrings::sPicksetPolygon()),
 		       mODHelpKey(mImpPickSetHelpID) ).modal(false) )
     , importReady(this)
 {
     setOkCancelText( uiStrings::sImport(), uiStrings::sClose() );
-    enableSaveButton( tr("Display after import") );
 
     const auto& fact = uiPickSetImportGroup::factory();
     const uiStringSet& options = fact.getUserNames();
-    auto* lcc = new uiLabeledComboBox( this, tr("Import"), "import_options" );
-    optionfld_ = lcc->box();
-    optionfld_->addItems( options );
+
+    uiObject* topobj = nullptr;
+    if ( options.size()>1 )
+    {
+	auto* lcc = new uiLabeledComboBox( this, tr("Import"),
+					   "import_options" );
+	optionfld_ = lcc->box();
+	optionfld_->addItems( options );
+	optionfld_->setHSzPol( uiObject::MedVar );
+	optionfld_->setSensitive( options.size()!=1 );
+	topobj = lcc->attachObj();
+	mAttachCB( optionfld_->selectionChanged, uiImportPickSet::optionSelCB );
+    }
+    else
+    {
+	auto* label = new uiLabel( this, tr("Import Single PointSet") );
+	topobj = label;
+    }
 
     const BufferStringSet& names = fact.getNames();
     for ( const auto* name : names )
@@ -318,8 +498,10 @@ uiImportPickSet::uiImportPickSet( uiParent* p, uiPickPartServer* pps )
 	grp->setPartServer( pps );
 	grp->init();
 	groups_.add( grp );
-	grp->attach( alignedBelow, lcc );
+	grp->attach( alignedBelow, topobj );
     }
+
+    enableSaveButton( tr("Display after import") );
 
     mAttachCB( postFinalize(), uiImportPickSet::optionSelCB );
 }
@@ -331,23 +513,27 @@ uiImportPickSet::~uiImportPickSet()
 }
 
 
-MultiID uiImportPickSet::getStoredID() const
+TypeSet<MultiID> uiImportPickSet::getStoredIDs() const
 {
-    const int sel = optionfld_->currentItem();
+    TypeSet<MultiID> ids;
+    const int sel = optionfld_ ? optionfld_->currentItem() : 0;
     if ( !groups_.validIdx(sel) )
-	return MultiID::udf();
+	return ids;
 
-    // TODO: Properly support multiple ids
-    const TypeSet<MultiID> ids = groups_[sel]->storedIDs();
-    return ids.isEmpty() ? MultiID::udf() : ids.first();
+    return groups_[sel]->storedIDs();
 }
 
 
 void uiImportPickSet::optionSelCB( CallBacker* )
 {
-    const int sel = optionfld_->currentItem();
+    const int sel = optionfld_ ? optionfld_->currentItem() : 0;
     for ( int idx=0; idx<groups_.size(); idx++ )
 	groups_[idx]->display( sel==idx );
+
+    //Do not display the save button if there are more than 1 pointsets
+    const bool display = sel==0;
+    setButtonSensitive( SAVE, display );
+    displayButton( SAVE, display );
 }
 
 
@@ -367,20 +553,32 @@ bool uiImportPickSet::acceptOK( CallBacker* )
     if ( selgroup->triggerImportReady() )
 	importReady.trigger();
 
-    const bool ispolygon = selgroup->isPolygon();
-    uiString msg = tr("%1 successfully imported."
-		      "\n\nDo you want to import more PointSets or Polygons?")
-		 .arg( ispolygon ? uiStrings::sPolygon()
-				 : uiStrings::sPointSet() );
-    return !uiMSG().askGoOn( msg, uiStrings::sYes(), tr("No, close window") );
-}
+    const int impcount = selgroup->getImportCount();
+    const auto shape = selgroup->getPointSetShape();
 
+    if ( impcount > 0 )
+    {
+	selgroup->resetImportCount();
+
+	const auto msg = tr("%1 %2%3 successfully imported.\n\n"
+			    "Do you want to import more PointSet(s)?")
+				.arg( impcount )
+				.arg( shape )
+				.arg( impcount==1 ? uiStrings::sEmptyString()
+						  : tr("s") );
+
+	return !uiMSG().askGoOn( msg, uiStrings::sYes(),
+				      tr("No, close window") );
+    }
+    else
+	mErrRet( tr("Not able to import the %1(s) requested").arg(shape) );
+}
 
 
 uiExportPickSet::uiExportPickSet( uiParent* p )
     : uiDialog( p,
-		Setup( uiStrings::phrExport(sPicksetPolygon()),
-		       mODHelpKey(mExpPickSetHelpID) ).modal(false) )
+	       Setup( uiStrings::phrExport(sPicksetPolygon()),
+		     mODHelpKey(mExpPickSetHelpID) ).modal(false) )
 {
     setOkCancelText( uiStrings::sExport(), uiStrings::sClose() );
 
@@ -419,12 +617,12 @@ bool uiExportPickSet::doExport()
     if ( !PickSetTranslator::retrieve(*ps,ioobj.ptr(),true,errmsg) )
 	mErrRet( errmsg )
 
-    const char* fname = filefld_->fileName();
+	    const char* fname = filefld_->fileName();
     od_ostream strm( fname );
     if ( !strm.isOK() )
     {
 	mErrRet(uiStrings::phrCannotOpen(uiStrings::phrOutput(
-		uiStrings::sFile())))
+	    uiStrings::sFile())))
     }
 
     strm.stdStream() << std::fixed;
@@ -432,7 +630,7 @@ bool uiExportPickSet::doExport()
     for ( int locidx=0; locidx<ps->size(); locidx++ )
     {
 	ps->get(locidx).toString( buf, true, coordsysselfld_ ?
-			coordsysselfld_->getCoordSystem().ptr() : nullptr );
+			    coordsysselfld_->getCoordSystem().ptr() : nullptr );
 	strm << buf.buf() << '\n';
     }
 
@@ -447,7 +645,7 @@ bool uiExportPickSet::checkInpFlds()
     if ( filenm.isEmpty() )
 	mErrRet( uiStrings::sSelOutpFile() )
 
-    objfld_->reset();
+	    objfld_->reset();
     if ( !objfld_->ioobj() )
 	return false;
 

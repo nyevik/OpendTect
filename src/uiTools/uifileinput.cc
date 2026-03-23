@@ -195,7 +195,7 @@ void uiFileInput::inputChg( CallBacker* )
 	   break;
     }
 
-    enableExamine( enable );
+    enableExamine( enable && !fnms.isEmpty() );
 }
 
 
@@ -206,12 +206,11 @@ void uiFileInput::fnmEntered( CallBacker* )
     if ( isdir || forread_ || defaultext_.isEmpty() )
 	return;
 
-    FilePath fp( fileName() );
+    FilePath fp( text() );
     const StringView ext = fp.extension();
-    if ( !ext.isEmpty() )
-	return;
+    if ( ext.isEmpty() )
+	fp.setExtension( defaultext_ );
 
-    fp.setExtension( defaultext_ );
     setFileName( fp.fullPath() );
 }
 
@@ -251,9 +250,18 @@ BufferString getExtFromFilter( const char* fltr )
 
 void uiFileInput::doSelect( CallBacker* )
 {
-    BufferString fname = fileName();
+    BufferString fname;
+    BufferStringSet fnames;
+    getFileNames( fnames );
+    if ( !fnames.isEmpty() )
+    {
+	const FilePath fp( fnames.first()->buf() );
+	fname = fp.pathOnly();
+    }
+
     if ( fname.isEmpty() )
 	fname = defseldir_;
+
     BufferString oldfltr = selfltr_;
 
     const bool usegendlg = selmode_ == uiFileDialog::Directory
@@ -289,11 +297,10 @@ void uiFileInput::doSelect( CallBacker* )
     BufferString newfname;
     if ( selmode_ == uiFileDialog::ExistingFiles )
     {
-	BufferStringSet filenames;
-	dlg->getFileNames( filenames );
-	uiFileDialog::list2String( filenames, newfname );
-	setFileName( newfname );
-	filenames.setEmpty();
+	filenames_.setEmpty();
+	dlg->getFileNames( filenames_ );
+	uiFileDialog::list2String( filenames_, newfname );
+	setText( newfname );
     }
     else
     {

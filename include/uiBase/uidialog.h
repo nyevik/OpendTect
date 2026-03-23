@@ -123,6 +123,7 @@ public:
 				//!< -1 running, otherwise (int)DoneResult
 
     void		setButtonSensitive(Button,bool);
+    void		displayButton(Button,bool);
     void		setSaveButtonChecked(bool);
     void		setTitleText(const uiString& txt);
     bool		isButtonSensitive(Button) const;

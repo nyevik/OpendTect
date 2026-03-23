@@ -1766,26 +1766,31 @@ bool Set::fillDataPointSet( DataPointSet& dps ) const
 
 
 // PickSetAscIO
-Table::FormatDesc* PickSetAscIO::getDesc( bool iszreq )
+Table::FormatDesc* PickSetAscIO::getDesc( bool iszreq, bool withnamecol )
 {
     Table::FormatDesc* fd = new Table::FormatDesc( "PickSet" );
-    createDescBody( fd, iszreq );
+    createDescBody( fd, iszreq, withnamecol );
     return fd;
 }
 
 
-void PickSetAscIO::createDescBody( Table::FormatDesc* fd, bool iszreq )
+void PickSetAscIO::createDescBody( Table::FormatDesc* fd, bool iszreq,
+				   bool withnamecol )
 {
+    if ( withnamecol )
+	fd->bodyinfos_ += new Table::TargetInfo( sKey::Name(),
+						 Table::Required );
     fd->bodyinfos_ += Table::TargetInfo::mkHorPosition( true );
     if ( iszreq )
 	fd->bodyinfos_ += Table::TargetInfo::mkZPosition( true );
 }
 
 
-void PickSetAscIO::updateDesc( Table::FormatDesc& fd, bool iszreq )
+void PickSetAscIO::updateDesc( Table::FormatDesc& fd, bool iszreq,
+			       bool withnamecol )
 {
     fd.bodyinfos_.erase();
-    createDescBody( &fd, iszreq );
+    createDescBody( &fd, iszreq, withnamecol );
 }
 
 
@@ -1803,8 +1808,11 @@ bool PickSetAscIO::get( od_istream& strm, Pick::Set& ps,
     while ( true )
     {
 	int ret = getNextBodyVals( strm );
-	if ( ret < 0 ) mErrRet(errmsg_)
-	if ( ret == 0 ) break;
+	if ( ret < 0 )
+	    mErrRet(errmsg_)
+
+	if ( ret == 0 )
+	    break;
 
 	Coord pos( getPos(0, 1) );
 	if ( pos.isUdf() )
@@ -1813,7 +1821,7 @@ bool PickSetAscIO::get( od_istream& strm, Pick::Set& ps,
 	mPIEPAdj(Coord,pos,true);
 	if ( !isXY() )
 	{
-            BinID bid( mNINT32(pos.x_), mNINT32(pos.y_) );
+	    BinID bid( mNINT32(pos.x_), mNINT32(pos.y_) );
 	    mPIEPAdj(BinID,bid,true);
 	    SI().snap( bid );
 	    pos = SI().transform( bid );
@@ -1830,6 +1838,60 @@ bool PickSetAscIO::get( od_istream& strm, Pick::Set& ps,
 	}
 
 	ps.add( Pick::Location(pos,zread) );
+    }
+
+    return true;
+}
+
+
+bool PickSetAscIO::get( od_istream& strm, ObjectSet<Pick::Set>& picksets,
+			bool iszreq, float constz ) const
+{
+    Pick::Set* ps = nullptr;
+    BufferString psname;
+
+    while ( true )
+    {
+	int ret = getNextBodyVals( strm );
+
+	BufferString currentname = getText( 0 );
+
+	if ( ret < 0 )
+	    mErrRet( errmsg_ )
+		else if ( ret==0 || currentname=="" )
+		break;
+
+	if ( ps==nullptr || psname!=currentname )
+	{
+	    psname = currentname.buf();
+	    ps = new Pick::Set( psname.buf() );
+	    picksets.add( ps );
+	}
+
+	Coord pos( getPos(1, 2) );
+	if ( pos.isUdf() )
+	    continue;
+
+	mPIEPAdj(Coord,pos,true);
+	if ( !isXY() )
+	{
+	    BinID bid( mNINT32(pos.x_), mNINT32(pos.y_) );
+	    mPIEPAdj(BinID,bid,true);
+	    SI().snap( bid );
+	    pos = SI().transform( bid );
+	}
+
+	float zread = constz;
+	if ( iszreq )
+	{
+	    zread = getFValue( 3 );
+	    if ( mIsUdf(zread) )
+		continue;
+
+	    mPIEPAdj(Z,zread,true);
+	}
+
+	ps->add( Pick::Location(pos,zread) );
     }
 
     return true;

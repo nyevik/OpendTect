@@ -529,6 +529,8 @@ public:
     static uiString sPetrelAlut()	{ return tr("Petrel *.alut"); }
     static uiString sPhase()		{ return tr("Phase"); }
     static uiString sPickSet(int n=1)	{ return tr("PickSet",0,n); }
+    static uiString sPicksetPolygon()
+    { return toUiString("Pointset/Polygon"); }
     static uiString sPlane()		{ return tr("Plane"); }
     static uiString sPlatform()		{ return tr("Platform"); }
     static uiString sPoint(int n=1)	{ return tr("Point",0,n); }

@@ -103,8 +103,7 @@ void uiPickPartServer::importSet()
     if ( !imppsdlg_ )
     {
 	imppsdlg_ = new uiImportPickSet( parent(), this );
-	imppsdlg_->importReady.notify(
-		mCB(this,uiPickPartServer,importReadyCB) );
+	mAttachCB( imppsdlg_->importReady, uiPickPartServer::importReadyCB );
     }
 
     imppsdlg_->show();
@@ -116,13 +115,13 @@ void uiPickPartServer::importReadyCB( CallBacker* cb )
 {
     bool sendevent = true;
     if ( cb==imppsdlg_ )
-	picksetid_ = imppsdlg_->getStoredID();
+	picksetids_ = imppsdlg_->getStoredIDs();
     else if ( cb==genpsdlg_ )
-	picksetid_ = genpsdlg_->getStoredID();
+	picksetids_.add( genpsdlg_->getStoredID() );
     else if ( cb==genps2ddlg_ )
-	picksetid_ = genps2ddlg_->getStoredID();
+	picksetids_.add( genps2ddlg_->getStoredID() );
     else if ( cb==emptypsdlg_ )
-	picksetid_ = emptypsdlg_->getStoredID();
+	picksetids_.add( emptypsdlg_->getStoredID() );
     else
 	sendevent = false;
 

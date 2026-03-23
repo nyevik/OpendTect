@@ -132,6 +132,8 @@ void uiDialog::setOkCancelText( const uiString& oktxt, const uiString& cncltxt )
 
 void uiDialog::setButtonSensitive( Button b, bool s )
     { mBody->setButtonSensitive(b,s); }
+void uiDialog::displayButton( Button b, bool d )
+    { mBody->displayButton(b,d); }
 void uiDialog::setSaveButtonChecked(bool b)
     { mBody->setSaveButtonChecked(b); }
 bool uiDialog::isButtonSensitive( Button b ) const
