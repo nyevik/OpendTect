@@ -138,57 +138,6 @@ protected:
 };
 
 
-mExpClass(uiIo) uiPickSetExportGroup : public uiGroup
-{
-mODTextTranslationClass(uiExpPickSetGroup)
-public:
-			mDefineFactory1ParamInClass(uiPickSetExportGroup,
-						    uiParent*,factory);
-
-			~uiPickSetExportGroup();
-
-    virtual bool	init();
-
-    virtual bool	doExport()					= 0;
-
-    // int		getExportCount();
-    // void		resetExportCount();
-    virtual bool	checkInpFlds()					= 0;
-
-    virtual bool	triggerExportReady() const			= 0;
-
-
-protected:
-			    uiPickSetExportGroup(uiParent*);
-
-    uiFileInput*	      outputfilefld_;
-    Coords::uiCoordSystemSel* coordsysselfld_		= nullptr;
-    bool		    exportready_		= false;
-};
-
-
-mExpClass(uiIo) uiSinglePickSetExportGroup : public uiPickSetExportGroup
-{
-mODTextTranslationClass(uiSinglePickSetExportGroup)
-public:
-			mDefaultFactoryInstantiation1Param(uiPickSetExportGroup,
-				       uiSinglePickSetExportGroup,uiParent*,
-				       "single_pickset_export",
-				       toUiString("Single PointSet"));
-
-			~uiSinglePickSetExportGroup();
-
-protected:
-			uiSinglePickSetExportGroup(uiParent*);
-    bool		doExport() override;
-    bool		checkInpFlds() override;
-    bool		triggerExportReady() const override
-			{ return exportready_; }
-
-    uiIOObjSel*		objfld_				= nullptr;
-};
-
-
 mExpClass(uiIo) uiExportPickSet : public uiDialog
 {
 mODTextTranslationClass(uiExportPickSet)
