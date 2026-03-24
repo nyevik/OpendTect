@@ -1058,12 +1058,20 @@ bool uiEMPartServer::showLoadAuxDataDlg( const EM::ObjectID& id )
 
     uiSelectFromList dlg( parent(), setup );
     if ( dlg.selFld() )
-	dlg.selFld()->setMultiChoice( true );
-    if ( !dlg.go() || !dlg.selFld() ) return false;
+	dlg.selFld()->setChoiceMode( OD::ChooseZeroOrMore );
+    if ( !dlg.go() || !dlg.selFld() )
+	return false;
 
     TypeSet<int> selattribs;
     dlg.selFld()->getChosen( selattribs );
-    if ( selattribs.isEmpty() ) return false;
+    if ( selattribs.isEmpty() )
+    {
+	const int current = dlg.selFld()->currentItem();
+	if ( current < 0 )
+	    return false;
+
+	selattribs.add( current );
+    }
 
     hor3d->auxdata.removeAll();
     ExecutorGroup exgrp( "Loading Horizon Data" );
