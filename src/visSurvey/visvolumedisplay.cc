@@ -832,14 +832,13 @@ int VolumeDisplay::getIsoSurfaceIdx( const mVisMCSurf* mcd ) const
 
 mDefParallelCalc3Pars( PtrDataFlipper, tr("Flipping data"),
 	const float*, inpdata, float*, newdata, float, threshold )
-mDefParallelCalcBody( , newdata_[idx] = threshold_ - inpdata_[idx]; , )
-
+mDefParallelCalcBody( , newdata_[idx] = inpdata_[idx] - threshold_; , )
 
 mDefParallelCalc3Pars( VSDataFlipper, tr("Flipping data"),
 	const ValueSeries<float>*, arrstor, ValueSeries<float>*, newstor,
 	float, threshold )
 mDefParallelCalcBody( ,
-	newstor_->setValue( idx, threshold_ - arrstor_->value(idx) ); , )
+	newstor_->setValue( idx, arrstor_->value(idx)-threshold_ ); , )
 
 mDefParallelCalc3Pars( ArrDataFlipper, tr("Flipping data"),
 	const Array3D<float>&, inpdata, Array3D<float>&, newdata,
@@ -853,7 +852,7 @@ mDefParallelCalcBody(
 	const int iidx = iter[0];
 	const int iidy = iter[1];
 	const int idz = sCast(int,idx);
-	newdata_.set( iidx, iidy, idz, threshold_-inpdata_.get(iidx,iidy,idz));
+	newdata_.set( iidx, iidy, idz, inpdata_.get(iidx,iidy,idz)-threshold_);
 	, )
 
 

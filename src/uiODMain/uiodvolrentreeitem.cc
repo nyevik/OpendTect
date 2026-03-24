@@ -364,6 +364,7 @@ void uiODVolrenAttribTreeItem::handleMenuCB( CallBacker* cb )
 	uiSingleGroupDlg dlg( applMgr()->applService().parent(),
 		uiDialog::Setup(tr("Iso value selection"),
 				mODHelpKey(mVolrenTreeItemHelpID)) );
+	dlg.setOkText( uiStrings::sCreate() );
 	dlg.setGroup( new uiVisIsoSurfaceThresholdDlg(&dlg,mcs,vd,attribNr()) );
 	if ( !dlg.go() )
 	{
