@@ -193,9 +193,12 @@ MarchingCubesSurfaceWriter( MarchingCubesSurface& surface,
     exec_ = surface.surface().writeTo( strm, binary );
 }
 
+
 int nextStep() override
 {
-    if ( !exec_ ) return ErrorOccurred();
+    if ( !exec_ )
+	return ErrorOccurred();
+
     const int res = exec_->doStep();
     if ( !res )
 	surface_.resetChangedFlag();

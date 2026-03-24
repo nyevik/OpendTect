@@ -309,19 +309,19 @@ bool uiODBodyDisplayTreeItem::init()
 			    dCast( visSurvey::RandomPosBodyDisplay*, visobj );
     if ( plg )
     {
-	//emid_ = plg->getEMID();
+	emid_ = plg->getEMID();
 	mAttachCB( plg->materialChange(),uiODBodyDisplayTreeItem::colorChgCB );
 	plg_ = plg;
     }
     else if ( mcd )
     {
-	//emid_ = mcd->getEMID();
+	emid_ = mcd->getEMID();
 	mAttachCB( mcd->materialChange(),uiODBodyDisplayTreeItem::colorChgCB );
 	mcd_ = mcd;
     }
     else if ( rpb )
     {
-	//emid_ = rpb->getEMID();
+	emid_ = rpb->getEMID();
 	mAttachCB( rpb->materialChange(),uiODBodyDisplayTreeItem::colorChgCB );
 	rpb_ = rpb;
     }

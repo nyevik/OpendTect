@@ -11,20 +11,19 @@ ________________________________________________________________________
 
 #include "coltabmapper.h"
 #include "marchingcubes.h"
-#include "mousecursor.h"
 #include "mouseevent.h"
 #include "picksettr.h"
-#include "survinfo.h"
+
 #include "uiaxishandler.h"
 #include "uibutton.h"
-#include "uihistogramdisplay.h"
-#include "uigraphicsscene.h"
-#include "uigraphicsitemimpl.h"
-#include "uitaskrunner.h"
 #include "uigeninput.h"
+#include "uigraphicsitemimpl.h"
+#include "uigraphicsscene.h"
+#include "uihistogramdisplay.h"
 #include "uiioobjsel.h"
 #include "uimsg.h"
 #include "uistatsdisplay.h"
+#include "uitaskrunner.h"
 #include "vismarchingcubessurface.h"
 #include "visvolumedisplay.h"
 
@@ -33,12 +32,12 @@ uiVisIsoSurfaceThresholdDlg::uiVisIsoSurfaceThresholdDlg( uiParent* p,
 	visBase::MarchingCubesSurface* isosurface,
 	visSurvey::VolumeDisplay* vd, int attrib )
     : uiDlgGroup( p, tr("Iso surface threshold") )
-    , isosurfacedisplay_( isosurface )
     , initiallineitem_( 0 )
     , thresholdlineitem_( 0 )
     , isovallineitem_( 0 )
-    , initialvalue_( vd->isoValue( isosurface ) )
+    , isosurfacedisplay_( isosurface )
     , vd_( vd )
+    , initialvalue_( vd->isoValue( isosurface ) )
 {
     bool fullmode = vd->isFullMode(isosurface);
     modefld_ = new uiGenInput( this, tr("Mode"),
@@ -86,6 +85,7 @@ uiVisIsoSurfaceThresholdDlg::uiVisIsoSurfaceThresholdDlg( uiParent* p,
     updatebutton_ = new uiPushButton( this, tr("Update"),
 	    mCB(this,uiVisIsoSurfaceThresholdDlg,updatePressed), true );
     updatebutton_->attach( rightOf, thresholdfld_ );
+    updatebutton_->display( false );
 }
 
 

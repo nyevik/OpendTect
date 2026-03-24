@@ -89,13 +89,14 @@ bool ExplPolygonSurface::update( bool forceall, TaskRunner* tr )
 	plgsamples += new TypeSet<Coord3>();
 
     int prevnrknots = 0;
-    for ( int plg=rrg.start_; plg<=rrg.stop_; plg += rrg.step_ )
+    for ( int plg=rrg.start_; plg<=rrg.stop_; plg+=rrg.step_ )
     {
 	const int currplgnormalisedidx = plg+nrplgs-1;
 	prevnrknots = samples_.size();
 	TypeSet<Coord3> currsamps;
 	surface_->getCubicBezierCurve( plg, currsamps, (float)scalefacs_.z_ );
-	plgsamples.get(currplgnormalisedidx)->append( currsamps );
+	if ( plgsamples.validIdx(currplgnormalisedidx) )
+	    plgsamples.get(currplgnormalisedidx)->append( currsamps );
 	if ( displaypolygons_ )
 	{
     	    for ( int knotidx=prevnrknots; knotidx<samples_.size(); knotidx++ )

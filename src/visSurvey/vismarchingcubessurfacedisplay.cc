@@ -113,15 +113,17 @@ bool MarchingCubesDisplay::setVisSurface(visBase::MarchingCubesSurface* surface)
 
     SamplingData<float> sd = surface->getScale( 0 );
     emsurface_->setInlSampling(
-                SamplingData<int>( mNINT32(sd.start_), mNINT32(sd.step_) ) );
+		SamplingData<int>( mNINT32(sd.start_), mNINT32(sd.step_) ) );
 
     sd = surface->getScale( 1 );
     emsurface_->setCrlSampling(
-                SamplingData<int>( mNINT32(sd.start_), mNINT32(sd.step_) ) );
+		SamplingData<int>( mNINT32(sd.start_), mNINT32(sd.step_) ) );
 
     emsurface_->setZSampling( surface->getScale( 2 ) );
 
     EM::EMM().addObject( emsurface_.ptr() );
+    emsurface_->setChangedFlag();
+    emsurface_->setFullyLoaded( true );
 
     displaysurface_ = surface;
     displaysurface_->setSelectable( false );

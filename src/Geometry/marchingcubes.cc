@@ -10,12 +10,10 @@ ________________________________________________________________________
 #include "marchingcubes.h"
 
 #include "arraynd.h"
-#include "arrayndimpl.h"
 #include "datainterp.h"
 #include "executor.h"
-#include "od_iostream.h"
-#include "position.h"
-#include "threadwork.h"
+#include "od_istream.h"
+#include "od_ostream.h"
 
 #define mX 0
 #define mY 1
@@ -233,7 +231,7 @@ bool MarchingCubesModel::operator==( const MarchingCubesModel& mc ) const
 
 
 bool MarchingCubesModel::set( const Array3D<float>& arr, int i0, int i1, int i2,
-		              float threshold )
+			      float threshold )
 {
     const bool use0 = i0!=arr.info().getSize( mX )-1;
     const bool use1 = i1!=arr.info().getSize( mY )-1;
@@ -452,9 +450,10 @@ Implicit2MarchingCubes:: Implicit2MarchingCubes( int posx, int posy, int posz,
 						 const Array3D<float>& arr,
 						 float threshold,
 						 MarchingCubesSurface& mcs )
-    : surface_( mcs )
-    , threshold_( threshold )
+    : ParallelTask("Creating Geobody")
+    , surface_( mcs )
     , array_( arr )
+    , threshold_( threshold )
     , xorigin_( posx )
     , yorigin_( posy )
     , zorigin_( posz )
@@ -664,13 +663,13 @@ MarchingCubes2Implicit::MarchingCubes2Implicit(
 	        Array3D<int>& arr, int originx, int originy, int originz,
 		bool nodistance	)
     : surface_( surface )
-    , result_( arr )
     , originx_( originx )
     , originy_( originy )
     , originz_( originz )
-    , newfloodfillers_( new bool[arr.info().getTotalSz()] )
-    , nrdefined_( 0 )
     , nodistance_( nodistance )
+    , result_( arr )
+    , nrdefined_( 0 )
+    , newfloodfillers_( new bool[arr.info().getTotalSz()] )
 {
     for ( int idx=0; idx<3; idx++ )
 	size_[idx] = arr.info().getSize( idx );
