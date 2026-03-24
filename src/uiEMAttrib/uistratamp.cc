@@ -51,6 +51,7 @@ static const char* statstrs[] =
 static HiddenParam<uiStratAmpCalc,Attrib::CurrentSel*> hp_sel( nullptr );
 static HiddenParam<uiStratAmpCalc,TypeSet<int>*> hp_seloutputs( nullptr );
 static HiddenParam<uiStratAmpCalc,BufferStringSet*> hp_seloutnames( nullptr );
+static HiddenParam<uiStratAmpCalc,uiStratAmpCalc::Setup*> hp_setup( nullptr );
 
 uiStratAmpCalc::uiStratAmpCalc( uiParent* p )
     : uiStratAmpCalc( p, Setup() )
@@ -62,6 +63,7 @@ uiStratAmpCalc::uiStratAmpCalc( uiParent* p, const Setup& setup )
     hp_sel.setParam( this, new Attrib::CurrentSel );
     hp_seloutputs.setParam( this, new TypeSet<int> );
     hp_seloutnames.setParam( this, new BufferStringSet );
+    hp_setup.setParam( this, new uiStratAmpCalc::Setup( setup ) );
     setCtrlStyle( RunAndClose );
 
     const Attrib::DescSet* ads
@@ -139,6 +141,7 @@ uiStratAmpCalc::~uiStratAmpCalc()
     hp_sel.removeAndDeleteParam( this );
     hp_seloutputs.removeAndDeleteParam( this );
     hp_seloutnames.removeAndDeleteParam( this );
+    hp_setup.removeAndDeleteParam( this );
 }
 
 
@@ -246,6 +249,7 @@ bool uiStratAmpCalc::prepareProcessing()
     auto* sel = hp_sel.getParam( this );
     auto* seloutputs = hp_seloutputs.getParam( this );
     auto* seloutnms = hp_seloutnames.getParam( this );
+    auto* setup = hp_setup.getParam( this );
     seloutnms->erase();
     seloutputs->erase();
     if ( !checkInpFlds() )
@@ -278,7 +282,8 @@ bool uiStratAmpCalc::prepareProcessing()
 	}
     }
 
-    Attrib::DescSet* ads = Attrib::eDSHolder().getDescSet(false,false);
+    Attrib::DescSet* ads = Attrib::eDSHolder().getDescSet(false,
+						    !setup->allowattributes_);
     RefMan<Attrib::Desc> seldesc = ads->getDesc( inpfld_->attribID() );
     if ( seldesc && seldesc->isStored() )
     {
@@ -311,8 +316,10 @@ Attrib::DescSet* uiStratAmpCalc::getFromInpFld(
 {
     auto* seloutputs = hp_seloutputs.getParam( this );
     auto* seloutnms = hp_seloutnames.getParam( this );
+    auto* setup = hp_setup.getParam( this );
     Attrib::DescID targetid = inpfld_->attribID();
-    Attrib::DescSet* ads = Attrib::eDSHolder().getDescSet(false,false);
+    Attrib::DescSet* ads = Attrib::eDSHolder().getDescSet(false,
+						setup->allowattributes_);
     RefMan<Attrib::Desc> seldesc = ads->getDesc( targetid );
     if ( seldesc )
     {
