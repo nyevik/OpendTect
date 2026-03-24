@@ -98,7 +98,9 @@ FaultStickSetDisplay::FaultStickSetDisplay()
 
 FaultStickSetDisplay::~FaultStickSetDisplay()
 {
+    setStickSelectMode( false );
     detachAllNotifiers();
+
     setSceneEventCatcher( nullptr );
     showManipulator( false );
 
