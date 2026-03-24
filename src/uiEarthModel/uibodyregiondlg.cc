@@ -402,27 +402,15 @@ void getPolygon( int curidx, Geometry::ExplPlaneIntersection* epi,
     if ( sz<2 )
 	return;
 
+    TypeSet<int> counts( sz, 0 );
+    for ( const auto& index : conns )
+	if ( crds.validIdx(index) )
+	    counts[index]++;
+
     TypeSet<int> edgeids;
-    for ( int idx=0; idx<conns.size(); idx++ )
-    {
-	const int index = conns[idx];
-	if ( index == -1 )
-	    continue;
-
-	int count = 0;
-	for ( int cidx=0; cidx<conns.size(); cidx++ )
-	{
-	    const int cindex = conns[cidx];
-	    if ( cindex == -1 )
-		continue;
-
-	    if ( index == cindex )
-		count++;
-	}
-
-	if ( count == 1 )
-	    edgeids += index;
-    }
+    for ( int idx=0; idx<sz; idx++ )
+	if ( counts[idx] == 1 )
+	    edgeids += idx;
 
     if ( edgeids.isEmpty() )
 	return;
@@ -465,22 +453,20 @@ void getPolygon( int curidx, Geometry::ExplPlaneIntersection* epi,
 	}
     }
 
-
-    mAllocVarLenArr(int,ids,sz);
     TypeSet< Geom::Point2D<float> > bidpos;
     for ( int idx=0; idx<sz; idx++ )
     {
-	ids[idx] = crdids[idx];
 	BinID bid = SI().transform( crds[idx] );
 	bidpos += Geom::Point2D<float>( mCast(float,bid.inl()),
 					mCast(float,bid.crl()) );
     }
 
     poly.setClosed( true );
-    for ( int idx=0; idx<sz; idx++ )
-	poly.add( bidpos[ids[idx]] );
+    for ( int idx=0; idx<crdids.size(); idx++ )
+	poly.add( bidpos[crdids[idx]] );
 
-    const bool ascending = poly.data()[sz-1].y_ > poly.data()[0].y_;
+    const bool ascending =
+	poly.data().last().y_ > poly.data().first().y_;
 
     if ( (side==mToMinInline && ascending) ||
 	 (side==mToMaxCrossline && ascending) )

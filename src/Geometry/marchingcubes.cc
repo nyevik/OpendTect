@@ -51,14 +51,12 @@ private:
     uiString	uiNrDoneText() const override
 		{ return tr("Positions written"); }
 
-    bool doPrepare( od_ostream* strm ) override
-    {
-	writeInt32( totalnr_, '\n' );
-	return SequentialTask::doPrepare( strm );
-    }
-
     int nextStep() override
     {
+	// Do not use a doPrepare function here. This is not a regular Executor.
+	if ( nrdone_ == 0 )
+	    writeInt32( totalnr_, '\n' );
+
 	const MultiDimStorage<MarchingCubesModel>& models = surface_.models_;
 	for ( int idx=0; idx<mWriteChunkSize; idx++ )
 	{
