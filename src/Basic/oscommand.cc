@@ -718,6 +718,8 @@ bool OS::MachineCommand::execute( LaunchType lt, const char* workdir )
     CommandLauncher cl( *this );
     const bool res = cl.execute( lt, workdir );
     errmsg_ = cl.errorMsg();
+    exitcode_ = cl.exitCode();
+
     return res;
 }
 
@@ -728,6 +730,8 @@ bool OS::MachineCommand::execute( BufferString& out, BufferString* err,
     CommandLauncher cl( *this );
     const bool res = cl.execute( out, err, workdir );
     errmsg_ = cl.errorMsg();
+    exitcode_ = cl.exitCode();
+
     return res;
 }
 
@@ -737,6 +741,8 @@ bool OS::MachineCommand::execute( const CommandExecPars& execpars )
     CommandLauncher cl( *this );
     const bool res = cl.execute( execpars );
     errmsg_ = cl.errorMsg();
+    exitcode_ = cl.exitCode();
+
     return res;
 }
 

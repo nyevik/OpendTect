@@ -41,6 +41,7 @@ public:
 
     bool			execute() override;
     bool			getResult() const	{ return result_; }
+    int				getExitCode() const	{ return exitcode_; }
     const OS::MachineCommand&	getMachineCommand() const { return machcmd_; }
 
     BufferString		getStdOutput() const;
@@ -53,6 +54,7 @@ protected:
     BufferString*		stderror_ = nullptr;
     bool			inpythonenv_ = false;
     bool			result_ = false;
+    int				exitcode_ = mUdf(int);
 
 };
 

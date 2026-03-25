@@ -196,6 +196,7 @@ public:
 				//!< for quick get-me-the-output-of-this-command
 				//!
     uiString		errorMsg() const	{ return errmsg_; }
+    int			exitCode() const	{ return exitcode_; }
 
 private:
 
@@ -213,6 +214,7 @@ private:
     BufferString	remexec_		= defremexec_;
     bool		needshell_		= false;
     uiString		errmsg_;
+    int			exitcode_		= mUdf(int);
     MachineCommand*	pipedmc_		= nullptr;
 
     static BufferString	defremexec_;

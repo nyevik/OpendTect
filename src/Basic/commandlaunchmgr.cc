@@ -66,20 +66,25 @@ bool CommandTask::execute()
 	{
 	    BufferString tmpstdout;
 	    BufferString& stdoutmsg = stdoutput_ ? *stdoutput_ : tmpstdout;
-	    res = OD::PythA().execute( machcmd_, stdoutmsg, ret, stderror_ );
+	    res = OD::PythA().execute( machcmd_, stdoutmsg, ret, stderror_,
+				       &exitcode_ );
 	}
 	else
-	    res = OD::PythA().execute( machcmd_, execpars_, ret );
+	    res = OD::PythA().execute( machcmd_, execpars_, ret, &exitcode_ );
     }
     else if ( stdoutput_ || stderror_ )
     {
 	BufferString out;
 	res = machcmd_.execute( out, stderror_, execpars_.workingdir_ );
+	exitcode_ = machcmd_.exitCode();
 	if ( stdoutput_ )
 	    stdoutput_->set( out );
     }
     else
+    {
 	res = machcmd_.execute( execpars_ );
+	exitcode_ = machcmd_.exitCode();
+    }
 
     result_ = res;
     return res;

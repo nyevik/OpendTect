@@ -52,15 +52,18 @@ namespace OD
 	bool		execute(const OS::MachineCommand&,uiRetVal&,
 				bool wait4finish=true,
 				BufferString* stdoutstr =nullptr,
-				BufferString* stderrstr =nullptr) const;
+				BufferString* stderrstr =nullptr,
+				int* exitcode =nullptr) const;
 	bool		execute(const OS::MachineCommand&,
 				BufferString& stdoutstr,uiRetVal&,
-				BufferString* stderrstr =nullptr) const;
+				BufferString* stderrstr =nullptr,
+				int* exitcode =nullptr) const;
 	bool		execute(const OS::MachineCommand&,
 				const OS::CommandExecPars&,uiRetVal&,
 				int* pid=nullptr,
 				BufferString* stdoutstr =nullptr,
-				BufferString* stderrstr =nullptr) const;
+				BufferString* stderrstr =nullptr,
+				int* exitcode =nullptr) const;
 	bool		executeScript(const char*,BufferString& stdoutstr,
 				      uiRetVal&,
 				      BufferString* stderrstr =nullptr) const;
@@ -180,7 +183,7 @@ namespace OD
 				  const OS::CommandExecPars*,int* pid,
 				  const FilePath* activatefp,const char* envnm,
 				  BufferString* stdoutstr,
-				  BufferString* stderrstr) const;
+				  BufferString* stderrstr,int* exitcode) const;
 	static FilePath*	getActivateScript(const FilePath& root);
 	void			appToBeStartedCB(CallBacker*);
 	bool			retrievePythonVersionStr();

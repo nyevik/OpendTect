@@ -503,7 +503,7 @@ bool OD::PythonAccess::isEnvUsable( const FilePath* pythonenvfp,
     if ( !force_external )
     {
 	ret = doExecute( cmd, nullptr, nullptr, activatefp.ptr(), venvnm,
-			 &stdoutmsg, &stderrmsg );
+			 &stdoutmsg, &stderrmsg, nullptr );
     }
 
     if ( !ret.isOK() )
@@ -546,23 +546,24 @@ bool OD::PythonAccess::isEnvUsable( const FilePath* pythonenvfp,
 
 bool OD::PythonAccess::execute( const OS::MachineCommand& cmd, uiRetVal& ret,
 				bool wait4finish, BufferString* stdoutstr,
-				BufferString* stderrstr ) const
+				BufferString* stderrstr,
+				int* exitcode ) const
 {
     OS::CommandExecPars execpars( wait4finish ? OS::Wait4Finish : OS::RunInBG );
     execpars.txtbufstdout( stdoutstr ).txtbufstderr( stderrstr );
-    return execute( cmd, execpars, ret, nullptr, stdoutstr, stderrstr );
+    return execute( cmd, execpars, ret, nullptr, stdoutstr, stderrstr,exitcode);
 }
 
 
 bool OD::PythonAccess::execute( const OS::MachineCommand& cmd,
 				BufferString& stdoutstr, uiRetVal& ret,
-				BufferString* stderrstr ) const
+				BufferString* stderrstr, int* exitcode ) const
 {
     if ( !getNonConst(*this).isUsable_(!istested_,ret,&stdoutstr,stderrstr) )
 	return false;
 
     ret = doExecute( cmd, nullptr, nullptr, activatefp_, virtenvnm_.buf(),
-		     &stdoutstr, stderrstr );
+		     &stdoutstr, stderrstr, exitcode );
     return ret.isOK();
 }
 
@@ -571,13 +572,13 @@ bool OD::PythonAccess::execute( const OS::MachineCommand& cmd,
 				const OS::CommandExecPars& pars,
 				uiRetVal& ret, int* pid,
 				BufferString* stdoutstr,
-				BufferString* stderrstr ) const
+				BufferString* stderrstr, int* exitcode ) const
 {
     if ( !getNonConst(*this).isUsable_(!istested_,ret,stdoutstr,stderrstr) )
 	return false;
 
     ret = doExecute( cmd, &pars, pid, activatefp_, virtenvnm_.buf(),
-		     stdoutstr, stderrstr );
+		     stdoutstr, stderrstr, exitcode );
     return ret.isOK();
 }
 
@@ -965,7 +966,7 @@ uiRetVal OD::PythonAccess::doExecute( const OS::MachineCommand& cmd,
 				  const OS::CommandExecPars* execpars, int* pid,
 				  const FilePath* activatefp, const char* envnm,
 				  BufferString* stdoutstr,
-				  BufferString* stderrstr ) const
+				  BufferString* stderrstr, int* exitcode ) const
 {
     FilePath scriptfp;
     const bool background = execpars && execpars->launchtype_ >= OS::RunInBG;
@@ -996,6 +997,9 @@ uiRetVal OD::PythonAccess::doExecute( const OS::MachineCommand& cmd,
 
     if ( pid )
 	*pid = cl->processID();
+
+    if ( exitcode )
+	*exitcode = cl->exitCode();
 
     if ( origpythonpathdirs.isEmpty() )
 	UnsetOSEnvVar( sKeyPythonPathEnvStr() );
