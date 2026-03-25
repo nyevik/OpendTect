@@ -11,7 +11,11 @@ ________________________________________________________________________
 #include "pythonaccess.h"
 #include "threadwork.h"
 
+#include "hiddenparam.h"
+
 using namespace Threads;
+
+static HiddenParam<CommandTask,int> cmdtaskhpmgr_(mUdf(int));
 
 CommandTask::CommandTask( const OS::MachineCommand& mc,
 			  const OS::CommandExecPars& xpars,
@@ -20,7 +24,9 @@ CommandTask::CommandTask( const OS::MachineCommand& mc,
     , machcmd_(mc)
     , execpars_(xpars)
     , inpythonenv_(inpythonenv)
-{}
+{
+    cmdtaskhpmgr_.setParam( this, mUdf(int) );
+}
 
 
 CommandTask::CommandTask( const OS::MachineCommand& mc,
@@ -31,6 +37,7 @@ CommandTask::CommandTask( const OS::MachineCommand& mc,
     , execpars_(lt)
     , inpythonenv_(inpythonenv)
 {
+    cmdtaskhpmgr_.setParam( this, mUdf(int) );
     if ( workdir && *workdir )
 	execpars_.workingdir( workdir );
 }
@@ -42,6 +49,7 @@ CommandTask::CommandTask( const OS::MachineCommand& mc,
 			  const char* workdir )
     : CommandTask(mc,OS::Wait4Finish,inpythonenv,workdir)
 {
+    cmdtaskhpmgr_.setParam( this, mUdf(int) );
     if ( readstdoutput )
 	stdoutput_ = new BufferString;
     if ( readstderror )
@@ -53,12 +61,20 @@ CommandTask::~CommandTask()
 {
     delete stdoutput_;
     delete stderror_;
+    cmdtaskhpmgr_.removeParam( this );
+}
+
+
+int CommandTask::getExitCode() const
+{
+    return cmdtaskhpmgr_.getParam( this );
 }
 
 
 bool CommandTask::execute()
 {
     bool res = false;
+    int exitcode = getExitCode();
     if ( inpythonenv_ )
     {
 	uiRetVal ret;
@@ -66,22 +82,25 @@ bool CommandTask::execute()
 	{
 	    BufferString tmpstdout;
 	    BufferString& stdoutmsg = stdoutput_ ? *stdoutput_ : tmpstdout;
-	    res = OD::PythA().execute( machcmd_, stdoutmsg, ret, stderror_ );
+	    res = OD::PythA().execute( machcmd_, stdoutmsg, ret, stderror_,
+				       &exitcode );
 	}
 	else
-	    res = OD::PythA().execute( machcmd_, execpars_, ret );
+	    res = OD::PythA().execute( machcmd_, execpars_, ret, &exitcode );
     }
     else if ( stdoutput_ || stderror_ )
     {
 	BufferString out;
-	res = machcmd_.execute( out, stderror_, execpars_.workingdir_ );
+	res = machcmd_.execute( out, stderror_, execpars_.workingdir_,
+				&exitcode );
 	if ( stdoutput_ )
 	    stdoutput_->set( out );
     }
     else
-	res = machcmd_.execute( execpars_ );
+	res = machcmd_.execute( execpars_, &exitcode );
 
     result_ = res;
+    cmdtaskhpmgr_.setParam( this, exitcode );
     return res;
 }
 

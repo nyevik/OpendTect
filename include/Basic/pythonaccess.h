@@ -53,14 +53,27 @@ namespace OD
 				bool wait4finish=true,
 				BufferString* stdoutstr =nullptr,
 				BufferString* stderrstr =nullptr) const;
+	bool		execute(const OS::MachineCommand&,uiRetVal&,
+				bool wait4finish,
+				BufferString* stdoutstr,BufferString* stderrstr,
+				int* exitcode) const;
 	bool		execute(const OS::MachineCommand&,
 				BufferString& stdoutstr,uiRetVal&,
 				BufferString* stderrstr =nullptr) const;
+	bool		execute(const OS::MachineCommand&,
+				BufferString& stdoutstr,uiRetVal&,
+				BufferString* stderrstr,
+				int* exitcode) const;
 	bool		execute(const OS::MachineCommand&,
 				const OS::CommandExecPars&,uiRetVal&,
 				int* pid=nullptr,
 				BufferString* stdoutstr =nullptr,
 				BufferString* stderrstr =nullptr) const;
+	bool		execute(const OS::MachineCommand&,
+				const OS::CommandExecPars&,uiRetVal&,
+				int* pidr,
+				BufferString* stdoutstr,BufferString* stderrstr,
+				int* exitcode) const;
 	bool		executeScript(const char*,BufferString& stdoutstr,
 				      uiRetVal&,
 				      BufferString* stderrstr =nullptr) const;
@@ -181,6 +194,11 @@ namespace OD
 				  const FilePath* activatefp,const char* envnm,
 				  BufferString* stdoutstr,
 				  BufferString* stderrstr) const;
+	uiRetVal		doExecute(const OS::MachineCommand&,
+				  const OS::CommandExecPars*,int* pid,
+				  const FilePath* activatefp,const char* envnm,
+				  BufferString* stdoutstr,
+				  BufferString* stderrstr,int* exitcode) const;
 	static FilePath*	getActivateScript(const FilePath& root);
 	void			appToBeStartedCB(CallBacker*);
 	bool			retrievePythonVersionStr();

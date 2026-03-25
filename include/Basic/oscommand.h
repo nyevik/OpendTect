@@ -159,11 +159,16 @@ public:
 
     bool		execute(LaunchType lt=Wait4Finish,
 				const char* workdir=nullptr);
+    bool		execute(LaunchType,const char* workdir,int* exitcode);
     bool		execute(BufferString& output_stdout,
 				BufferString* output_stderr=nullptr,
 				const char* workdir=nullptr);
+    bool		execute(BufferString& output_stdout,
+				BufferString* output_stderr,
+				const char* workdir,int* exitcode);
 				//!< run &, wait until finished, catch output
     bool		execute(const CommandExecPars&);
+    bool		execute(const CommandExecPars&,int* exitcode);
 
     BufferString	runAndCollectOutput(BufferString* errmsg=nullptr);
 				//!< for quick get-me-the-output-of-this-command

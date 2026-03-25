@@ -573,20 +573,56 @@ BufferString OS::MachineCommand::toString( const OS::CommandExecPars* pars
 
 bool OS::MachineCommand::execute( LaunchType lt, const char* workdir )
 {
-    return CommandLauncher(*this).execute( lt, workdir );
+    return execute( lt, workdir, nullptr );
+}
+
+
+bool OS::MachineCommand::execute( LaunchType lt, const char* workdir,
+				  int* exitcode )
+{
+    CommandLauncher cl( *this );
+    const bool res = cl.execute( lt, workdir );
+    if ( exitcode )
+	*exitcode = cl.exitCode();
+
+    return res;
 }
 
 
 bool OS::MachineCommand::execute( BufferString& out, BufferString* err,
 				  const char* workdir )
 {
-    return CommandLauncher(*this).execute( out, err, workdir );
+    return execute( out, err, workdir, nullptr );
+}
+
+
+bool OS::MachineCommand::execute( BufferString& out, BufferString* err,
+				  const char* workdir, int* exitcode )
+{
+    CommandLauncher cl( *this );
+    const bool res = cl.execute( out, err, workdir );
+    if ( exitcode )
+	*exitcode = cl.exitCode();
+
+    return res;
 }
 
 
 bool OS::MachineCommand::execute( const CommandExecPars& execpars )
 {
-    return CommandLauncher(*this).execute( execpars );
+    return execute( execpars, nullptr );
+}
+
+
+bool OS::MachineCommand::execute( const CommandExecPars& execpars,
+				  int* exitcode )
+{
+    CommandLauncher cl( *this );
+    const bool res = cl.execute( execpars );
+    if ( exitcode )
+	*exitcode = cl.exitCode();
+
+    return res;
 }
 
 

@@ -41,6 +41,7 @@ public:
 
     bool			execute() override;
     bool			getResult() const	{ return result_; }
+    int				getExitCode() const;
     const OS::MachineCommand&	getMachineCommand() const { return machcmd_; }
 
     BufferString		getStdOutput() const;
