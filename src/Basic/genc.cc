@@ -506,14 +506,12 @@ static int doExitProgram( int ret )
 // dyld: odmain bad address of lazy symbol pointer passed to
 // stub_binding_helper
 // _Exit does not call registered exit functions and prevents crash
-#ifdef __mac__
+#if __mac__
     _Exit( ret );
-#endif
-
-#ifdef __msvc__
-    exit( ret ? EXIT_FAILURE : EXIT_SUCCESS );
 #else
-    exit(ret);
+    exit( ret );
+#endif
+#if !defined(__msvc__) && !defined(__mac__)
     return ret; // to satisfy (some) compilers
 #endif
 }
