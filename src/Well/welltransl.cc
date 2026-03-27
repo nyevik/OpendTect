@@ -669,10 +669,7 @@ bool Well::HDF5Reader::doGetD2T( bool csmdl ) const
     HDF5::DataSetKey dsky( nullptr, sMDsDSName() );
     dsky.setGroupName( grpky.fullDataSetName() );
     if ( !rdr_->hasDataSet(dsky) )
-    {
-	errmsg_.set( rdr_->sCannotReadDataSet(dsky) );
-	return false;
-    }
+	return true;
 
     IOPar hdriop;
     uiRetVal uirv = rdr_->get( hdriop, &dsky );
@@ -680,6 +677,9 @@ bool Well::HDF5Reader::doGetD2T( bool csmdl ) const
     d2t->useHeaderPar( hdriop );
 
     const int sz = rdr_->dimSize( dsky, 0, uirv );
+    if ( sz < 1 )
+	return true;
+
     TypeSet<double> mds;
     uirv = rdr_->get( dsky, mds );
     mErrRetIfUiRvNotOK( uirv );
@@ -773,6 +773,9 @@ Well::Log* Well::HDF5Reader::getWL( const HDF5::DataSetKey& dsky ) const
     }
 
     const int sz = rdr_->dimSize( logkey, 0, uirv );
+    if ( sz < 1 )
+	return nullptr;
+
     TypeSet<double> mds;
     uirv = rdr_->get( logkey, mds );
     mErrRetNullIfUiRvNotOK();
@@ -918,11 +921,15 @@ bool Well::HDF5Reader::getMarkers() const
 	return false;
 
     HDF5::DataSetKey dsky( sMarkersGrpName(), "" );
-    MarkerSet& ms = wd_.markers();
+    uiRetVal uirv;
 
     dsky.setDataSetName( sMDsDSName() );
+    const int sz = rdr_->dimSize( dsky, 0, uirv );
+    if ( sz < 1 )
+	return true;
+
     TypeSet<double> mds;
-    uiRetVal uirv = rdr_->get( dsky, mds );
+    uirv = rdr_->get( dsky, mds );
     mErrRetIfUiRvNotOK( uirv );
     IOPar mdiop;
     uirv = rdr_->get( mdiop, &dsky );
@@ -942,8 +949,8 @@ bool Well::HDF5Reader::getMarkers() const
     uirv = rdr_->get( dsky, lvlids );
     mErrRetIfUiRvNotOK( uirv )
 
+    MarkerSet& ms = wd_.markers();
     ms.setEmpty();
-    const int sz = mds.size();
     for ( int idx=0; idx<sz; idx++ )
     {
 	const float dah = mds[idx];
