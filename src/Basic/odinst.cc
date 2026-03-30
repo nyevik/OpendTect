@@ -9,17 +9,20 @@ ________________________________________________________________________
 
 #include "odinst.h"
 
+#include "bufstringset.h"
 #include "dirlist.h"
+#include "envvars.h"
 #include "file.h"
 #include "filepath.h"
 #include "oddirs.h"
 #include "odplatform.h"
-#include "envvars.h"
 #include "od_iostream.h"
 #include "oscommand.h"
-#include "settings.h"
 #include "perthreadrepos.h"
-#include "bufstringset.h"
+#include "settings.h"
+
+#include <QSettings>
+
 
 #define mDeclEnvVarVal const char* envvarval = GetEnvVar("OD_INSTALLER_POLICY")
 #ifdef __mac__
@@ -137,7 +140,7 @@ static OS::MachineCommand getFullMachComm( const char* reldir )
     mc.setProgram( installerfp.fullPath() )
       .addKeyedArg( "instdir", reldir );
 
-    return OS::MachineCommand( mc, false );
+    return OS::MachineCommand( mc, true );
 }
 
 
@@ -150,7 +153,7 @@ static bool submitCommand( OS::MachineCommand& mc, const char* reldir )
     return mc.execute( pars );
 }
 
-};
+} // namespace ODInst
 
 #define mGetFullMachComm(reldir,errretstmt) \
     OS::MachineCommand machcomm( getFullMachComm( reldir ) ); \
@@ -173,7 +176,11 @@ const char* ODInst::sKeyHasNoUpdate()
     return "No updates available";
 }
 
-BufferString ODInst::GetInstallerDir()
+
+namespace ODInst
+{
+
+static BufferString GetOldInstallerDir()
 {
     BufferString appldir( GetSoftwareDir(false) );
     if ( File::isLink(appldir) )
@@ -212,6 +219,68 @@ BufferString ODInst::GetInstallerDir()
 }
 
 
+static const char* qtEditorName()
+{
+    return "dGB_Earth_Sciences";
+}
+
+
+static const char* sKeyqInstaller()
+{
+    return "Installer";
+}
+
+
+static const char* sKeyqInstallerDir()
+{
+    return "ODInstallerDir";
+}
+
+
+static bool isUserInst()
+{
+    const FilePath reqpath( GetSoftwareDir(false) );
+    if ( reqpath.isEmpty() )
+	return true;
+
+    const FilePath homepath( File::getHomePath() );
+    if ( reqpath.isSubDirOf(homepath) || reqpath == homepath )
+	return true;
+
+    const BufferString reqpathstr = reqpath.fullPath();
+#ifdef __win__
+    if ( WinUtils::pathContainsTrustedInstaller(reqpathstr.buf()) )
+	return false;
+#endif
+    if ( __ismac__ && reqpathstr.startsWith("/Application") )
+	return false;
+
+    return File::isWritable( reqpathstr );
+}
+
+} // namespace ODInst
+
+
+BufferString ODInst::GetInstallerDir()
+{
+    const bool isuserinst = isUserInst();
+    const QSettings::Scope instscope = isuserinst ? QSettings::Scope::UserScope
+						: QSettings::Scope::SystemScope;
+    const QSettings instsetts( instscope, qtEditorName(), sKeyqInstaller() );
+    const QVariant qvarinstsettlist = instsetts.value( sKeyqInstallerDir() );
+    const QString qinstsettlist = qvarinstsettlist.toString();
+    const BufferString instsettlist( qinstsettlist );
+    if ( File::isDirectory(instsettlist.buf()) )
+	return instsettlist;
+
+    const BufferString oldinstdir = GetOldInstallerDir();
+    if ( File::isDirectory(oldinstdir.buf()) )
+	return oldinstdir;
+
+    return BufferString::empty();
+}
+
+
 void ODInst::startInstManagement()
 {
     mGetFullMachComm(mRelRootDir,return);
@@ -226,9 +295,12 @@ void ODInst::startInstManagementWithRelDir( const char* reldir )
 }
 
 
-BufferString ODInst::getInstallerPlfDir()
+namespace ODInst
 {
-    const FilePath installerbasedir( GetInstallerDir() );
+
+static BufferString getOldInstallerPlfDir()
+{
+    const FilePath installerbasedir( GetOldInstallerDir() );
     if ( !installerbasedir.exists() )
 	return BufferString::empty();
 
@@ -250,6 +322,35 @@ BufferString ODInst::getInstallerPlfDir()
 	return installerbasedir.fullPath();
 
     return installerfp.fullPath();
+}
+
+
+static const char* sKeyqInstallerExecFnm()
+{
+    return "ODInstallerExecFnm";
+}
+
+} // namespace ODInst
+
+
+BufferString ODInst::getInstallerPlfDir()
+{
+    const bool isuserinst = isUserInst();
+    const QSettings::Scope instscope = isuserinst ? QSettings::Scope::UserScope
+						: QSettings::Scope::SystemScope;
+    const QSettings instsetts( instscope, qtEditorName(), sKeyqInstaller() );
+    const QVariant qvarinstsettlist = instsetts.value( sKeyqInstallerExecFnm());
+    const QString qinstsettlist = qvarinstsettlist.toString();
+    const BufferString instsettlist( qinstsettlist );
+    const FilePath instfp( instsettlist );
+    if ( instfp.exists() )
+	return instfp.pathOnly();
+
+    const BufferString oldinstplfdir = getOldInstallerPlfDir();
+    if ( File::isDirectory(oldinstplfdir.buf()) )
+	return oldinstplfdir;
+
+    return BufferString::empty();
 }
 
 
