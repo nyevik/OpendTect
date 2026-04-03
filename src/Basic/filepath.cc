@@ -635,6 +635,20 @@ BufferString FilePath::dirUpTo( int lvl ) const
 }
 
 
+BufferString FilePath::dirFrom( int lvl ) const
+{
+    const int nrlvls = lvls_.size();
+    if ( !lvls_.validIdx(lvl) )
+	return BufferString::empty();
+
+    BufferString ret;
+    for ( int idx=lvl; idx<nrlvls; idx++ )
+	ret.add( dirSep() ).add( lvls_.get(idx) );
+
+    return ret;
+}
+
+
 BufferString FilePath::fileFrom( int lvl, Style st ) const
 {
     BufferString ret;
