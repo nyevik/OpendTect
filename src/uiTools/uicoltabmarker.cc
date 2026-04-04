@@ -321,7 +321,7 @@ void uiColTabMarkerCanvas::drawMarkers( CallBacker* )
     const int h = viewHeight();
     w2ui_->set( uiRect(0,0,w,h), uiWorldRect(0,1,255,0) );
     auto* ctabrg = hp_ctabrg.getParam(this);
-    auto isclassified = hp_isclassified.getParam( this );
+    //auto isclassified = hp_isclassified.getParam( this );
 
     int decimals = 2;
     char format = 'f';
