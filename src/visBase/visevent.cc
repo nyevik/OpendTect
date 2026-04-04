@@ -629,11 +629,15 @@ void EventCatcher::reHandle( const EventInfo& eventinfo )
 
 void EventCatcher::releaseEventsCB( CallBacker* )
 {
+    if ( isreleasing_ )
+	return;
+
+    isreleasing_ = true;
     while ( true )
     {
 	Threads::Locker locker( eventqueuelock_ );
 	if ( eventqueue_.isEmpty() )
-	    return;
+	    break;
 
 	const EventInfo* curevent = eventqueue_.removeSingle( 0 );
 	locker.unlockNow();
@@ -648,7 +652,7 @@ void EventCatcher::releaseEventsCB( CallBacker* )
 
 	delete curevent;
     }
+    isreleasing_ = false;
 }
-
 
 } // namespace visBase

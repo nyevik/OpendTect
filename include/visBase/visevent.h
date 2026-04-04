@@ -118,6 +118,7 @@ protected:
     bool			ishandled_	= true;
     bool			rehandling_	= false;
     bool			rehandled_	= false;
+    bool			isreleasing_	= false;
 
     osg::Node*			osgnode_	= nullptr;
     EventCatchHandler*		eventcatchhandler_ = nullptr;
