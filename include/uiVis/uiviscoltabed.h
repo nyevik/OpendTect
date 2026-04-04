@@ -42,6 +42,8 @@ public:
     NotifierAccess&		mapperChange();
 
     void			setHistogram(const TypeSet<float>*);
+    void			setHistogram(const TypeSet<float>*,
+					     bool isclass);
     uiColorTable&		colTab()	{ return uicoltab_; }
 
     bool			usePar(const IOPar&);

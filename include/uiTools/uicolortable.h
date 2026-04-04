@@ -56,6 +56,7 @@ public:
 				       bool emitnotif=true);
 			/*!If ptr is null, mapper edit will be disabled. */
     void		setHistogram(const TypeSet<float>*);
+    void		setHistogram(const TypeSet<float>*,bool isclass);
     void		setInterval(const Interval<float>&);
     void		enableTransparencyEdit(bool);
     void		commitInput();
@@ -112,7 +113,7 @@ protected:
     void		colTabManChgd(CallBacker*);
     void		colTabManClosedCB(CallBacker*);
     void		numberFormatChgdCB(CallBacker*);
-    void		beforeSurveyChangeCB(CallBacker*);
+    void		surveyChgCB(CallBacker*);
 
     bool		isEditable() const	{ return maxfld_; }
 };

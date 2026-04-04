@@ -62,9 +62,13 @@ public:
 
     const ColTab::Sequence&	currentColTab()	const	{ return ctab_; }
 
-    void			setHistogram(const TypeSet<float>&);
-    void			setHistogram(const TypeSet<float>&,
-					     const Interval<float>&);
+    void			setSelectedCT(const char* ctnm);
+    void			setHistogram(const TypeSet<float>& hist);
+    void			setHistogram(const TypeSet<float>& hist,
+					     const Interval<float>& range);
+    void			setHistogram(const TypeSet<float>& hist,
+					     const Interval<float>& range,
+					     bool isclass);
     Interval<float>*		getRange();
 
     Notifier<uiColorTableMan> 	tableAddRem;
@@ -77,18 +81,18 @@ protected:
     uiColorTableCanvas*		ctabcanvas_;
     uiColTabMarkerCanvas*	markercanvas_;
     uiTreeView*			coltablistfld_;
-    uiToolButton*       	removebut_;
-    uiToolButton*       	importbut_;
-    uiToolButton*       	exportbut_;
-    uiColorInput*       	undefcolfld_;
-    uiColorInput*       	markercolfld_;
+    uiToolButton*		removebut_;
+    uiToolButton*		importbut_;
+    uiToolButton*		exportbut_;
+    uiColorInput*		undefcolfld_;
+    uiColorInput*		markercolfld_;
     uiGenInput*			segmentfld_;
     uiSpinBox*			nrsegbox_;
     uiWorld2Ui*			w2uictabcanvas_;
 
     BufferString		selstatus_;
-    ColTab::Sequence&         	ctab_;
-    ColTab::Sequence*         	orgctab_		= nullptr;
+    ColTab::Sequence&		ctab_;
+    ColTab::Sequence*		orgctab_		= nullptr;
 
     bool			issaved_		= true;
     int				selidx_			= -1;

@@ -11,6 +11,7 @@ ________________________________________________________________________
 
 #include "coltab.h"
 #include "coltabsequence.h"
+#include "hiddenparam.h"
 #include "ioman.h"
 #include "mouseevent.h"
 #include "settings.h"
@@ -365,7 +366,7 @@ uiColorTable::uiColorTable( const ColTab::Sequence& colseq )
     , enabletrans_(true)
 {
     hp_coltabman.setParam( this, nullptr );
-    mAttachCB( IOM().surveyToBeChanged, uiColorTable::beforeSurveyChangeCB );
+    mAttachCB( IOM().surveyToBeChanged, uiColorTable::surveyChgCB );
 }
 
 
@@ -429,10 +430,13 @@ uiColorTable::~uiColorTable()
 }
 
 
-void uiColorTable::beforeSurveyChangeCB( CallBacker* )
+
+void uiColorTable::surveyChgCB( CallBacker* )
 {
-	auto* coltabman = hp_coltabman.getParam(this);
-    closeAndNullPtr( coltabman );
+    auto* coltabman = hp_coltabman.getParam( this );
+    if ( coltabman )
+	coltabman->close();
+
     hp_coltabman.setParam( this, nullptr );
 }
 
@@ -521,6 +525,9 @@ void uiColorTable::setSequence( const ColTab::Sequence* ctseq, bool edit,
 	canvas_->setRGB();
 	if ( !emitnotif )
 	    seqChanged.trigger();
+
+	if ( hp_coltabman.getParam(this) )
+	    colTabChgdCB( nullptr );
     }
 
     selfld_->setSensitive( ctseq && edit );
@@ -546,6 +553,9 @@ void uiColorTable::setMapperSetup( const ColTab::MapperSetup* ms,
 
 	if ( !emitnotif )
 	    scaleChanged.trigger();
+
+	if ( hp_coltabman.getParam(this) )
+	    colTabChgdCB( nullptr );
     }
 
     if ( minfld_ )
@@ -556,8 +566,13 @@ void uiColorTable::setMapperSetup( const ColTab::MapperSetup* ms,
 }
 
 
-
 void uiColorTable::setHistogram( const TypeSet<float>* hist )
+{
+    setHistogram( hist, false );
+}
+
+
+void uiColorTable::setHistogram( const TypeSet<float>* hist, bool isclass )
 {
     histogram_.erase();
     if ( hist )
@@ -568,10 +583,12 @@ void uiColorTable::setHistogram( const TypeSet<float>* hist )
 	    const float minval = minfld_ ? minfld_->getFValue() : mUdf(float);
 	    const float maxval = maxfld_ ? maxfld_->getFValue() : mUdf(float);
 	    hp_coltabman.getParam(this)->setHistogram( histogram_,
-					       Interval<float>(minval,maxval) );
+					    Interval<float>(minval,maxval),
+						       isclass );
 	}
     }
 }
+
 
 
 void uiColorTable::tabSel( CallBacker* )
@@ -725,25 +742,37 @@ void uiColorTable::enableTransparencyEdit( bool yn )
 
 void uiColorTable::doManage( CallBacker* )
 {
-    auto* coltabman_ = hp_coltabman.getParam( this );
-    if ( !coltabman_ )
-	{
-	mDynamicCastGet( uiToolBar*, toolbar, parent_ );
+    auto* coltabman = hp_coltabman.getParam( this );
+    if ( !coltabman )
+    {
+	mDynamicCastGet(uiToolBar*,toolbar,parent_);
 	uiParent* dlgparent = toolbar ? toolbar->parent() : parent_;
-    coltabman_ = new uiColorTableMan( dlgparent, coltabseq_, enabletrans_);
-    coltabman_->setModal( false );
-    hp_coltabman.setParam( this, coltabman_ );
+	coltabman = new uiColorTableMan( dlgparent, coltabseq_, enabletrans_ );
+	coltabman->setModal( false );
+	coltabman->setDeleteOnClose( true );
+	hp_coltabman.setParam( this, coltabman );
 
-	mAttachCB( coltabman_->tableChanged, uiColorTable::colTabManChgd );
-	mAttachCB( coltabman_->tableAddRem, uiColorTable::tableAdded );
-	mAttachCB( coltabman_->rangeChanged(), uiColorTable::colTabManRgChangeCB );
-	mAttachCB( coltabman_->windowClosed, uiColorTable::colTabManClosedCB );
+	mAttachCB( coltabman->tableChanged, uiColorTable::colTabManChgd );
+	mAttachCB( coltabman->tableAddRem, uiColorTable::tableAdded );
+	mAttachCB( coltabman->rangeChanged(),
+		   uiColorTable::colTabManRgChangeCB );
+	mAttachCB( coltabman->windowClosed, uiColorTable::colTabManClosedCB );
+	mAttachCB( selfld_->selectionChanged, uiColorTable::colTabChgdCB );
     }
 
     const float minval = minfld_ ? minfld_->getFValue() : mUdf(float);
     const float maxval = maxfld_ ? maxfld_->getFValue() : mUdf(float);
-    coltabman_->setHistogram( histogram_, Interval<float>(minval,maxval) );
-    coltabman_->show();
+
+    coltabman->setHistogram( histogram_, Interval<float>(minval,maxval) );
+    coltabman->show();
+}
+
+
+void uiColorTable::colTabChgdCB( CallBacker* )
+{
+    auto* coltabman = hp_coltabman.getParam( this );
+    if ( coltabman )
+	coltabman->setSelectedCT( coltabseq_.name() );
 }
 
 

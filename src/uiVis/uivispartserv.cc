@@ -1116,7 +1116,7 @@ void uiVisPartServer::fillDispPars( const VisID& id, int attrib,
 
 
 const TypeSet<float>* uiVisPartServer::getHistogram( const VisID& id,
-						     int attrib) const
+						     int attrib ) const
 {
     mDynamicCastGet(const visSurvey::SurveyObject*,so,getObject(id));
     return so ? so->getHistogram( attrib ) : nullptr;

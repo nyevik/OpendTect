@@ -69,11 +69,13 @@ public:
     bool		hasTransparency() const;
 
     bool		hasEqualSegments() const    { return nrsegments_ > 1; }
-    int			nrSegments() const		{ return nrsegments_; }
-    void		setNrSegments(int n)		{ nrsegments_ = n; }
+    bool		hasVariableSegments() const { return nrsegments_ < 0; }
+    bool		hasNoSegments() const	    { return nrsegments_ == 0; }
+    int			nrSegments() const	    { return nrsegments_; }
+    void		setNrSegments(int n)	    { nrsegments_ = n; }
 			/*!<nrsegments > 0 divide the ctab in equally wide
 			    nrsegments == 0 no segmentation
-			    nrsegments == -1 constant color between markers.*/
+			    nrsegments == -1 variable*/
 
 
     bool		isSegmentized() const		{ return nrsegments_; }

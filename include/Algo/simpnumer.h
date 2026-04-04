@@ -364,8 +364,12 @@ inline int solve3DPoly( double a, double b, double c,
 template <class T>
 inline bool holdsClassValue( const T val, const unsigned int maxclss=50 )
 {
-    if ( mIsUdf(val) ) return true;
-    if ( val < -mDefEps ) return false;
+    if ( mIsUdf(val) )
+	return true;
+
+    if ( val < -mDefEps )
+	return false;
+
     const int ival = (int)(val + .5);
     return ival <= maxclss && mIsEqual(val,ival,mDefEps);
 }
@@ -376,7 +380,9 @@ inline bool holdsClassValues( const T* vals, od_int64 sz,
 			      const unsigned int maxclss=50,
 			      const unsigned int samplesz=100 )
 {
-    if ( sz < 1 ) return true;
+    if ( sz < 1 )
+	return true;
+
     if ( sz <= samplesz )
     {
 	for ( int idx=0; idx<sz; idx++ )

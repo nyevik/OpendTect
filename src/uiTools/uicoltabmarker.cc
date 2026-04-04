@@ -37,6 +37,7 @@ static const int sColorCol = 1;
 #define mEps 0.00001
 
 static HiddenParam<uiColTabMarkerCanvas,Interval<float>*> hp_ctabrg(nullptr);
+static HiddenParam<uiColTabMarkerCanvas,char> hp_isclassified(false);
 
 uiColTabMarkerDlg::uiColTabMarkerDlg( uiParent* p, ColTab::Sequence& ctab )
     : uiDialog(p,Setup(uiStrings::phrManage(tr("Anchors")),
@@ -81,6 +82,7 @@ void uiColTabMarkerDlg::fillTable()
 	table_->setValue( RowCol(reverseIdx(cidx),sPosCol), position );
 	table_->setColor( RowCol(reverseIdx(cidx),sColorCol),
 			  ctab_.color(position) );
+	table_->setRowLabel( cidx, tr("Anchor %1").arg(reverseIdx(cidx)+1) );
     }
 
     table_->setCellReadOnly( RowCol(0,0), true );
@@ -205,7 +207,7 @@ bool uiColTabMarkerDlg::acceptOK( CallBacker* )
     NotifyStopper ns( ctab_.colorChanged );
     for ( int idx=0; idx<table_->nrRows(); idx++ )
     {
-	const RowCol colrc( idx, sColorCol );
+	const RowCol colrc( reverseIdx(idx), sColorCol );
 	const OD::Color col( table_->getColor(colrc) );
 	ctab_.changeColor( idx, col );
     }
@@ -226,6 +228,7 @@ uiColTabMarkerCanvas::uiColTabMarkerCanvas( uiParent* p, ColTab::Sequence& ctab)
 {
     hp_ctabrg.setParam( this,
 			  new Interval<float>(Interval<float>::udf()) );
+    hp_isclassified.setParam( this, false );
     setScrollBarPolicy( true, uiGraphicsView::ScrollBarAlwaysOff );
     setScrollBarPolicy( false, uiGraphicsView::ScrollBarAlwaysOff );
     selidx_ = mUdf(int);
@@ -252,6 +255,7 @@ uiColTabMarkerCanvas::uiColTabMarkerCanvas( uiParent* p, ColTab::Sequence& ctab,
 {
     hp_ctabrg.setParam( this,
 			new Interval<float>(surveyrg.start_, surveyrg.stop_) );
+    hp_isclassified.setParam( this, false );
     setScrollBarPolicy( true, uiGraphicsView::ScrollBarAlwaysOff );
     setScrollBarPolicy( false, uiGraphicsView::ScrollBarAlwaysOff );
     selidx_ = mUdf(int);
@@ -271,11 +275,43 @@ uiColTabMarkerCanvas::uiColTabMarkerCanvas( uiParent* p, ColTab::Sequence& ctab,
 }
 
 
+uiColTabMarkerCanvas::uiColTabMarkerCanvas( uiParent* p, ColTab::Sequence& ctab,
+					    const Interval<float> surveyrg,
+					    const bool isclassified )
+    : uiGraphicsView(p,"Anchor Canvas")
+    , parent_(p)
+    , ctab_(ctab)
+    , markerChanged(this)
+    , meh_(scene().getMouseEventHandler())
+{
+    hp_ctabrg.setParam( this,
+		       new Interval<float>(surveyrg.start_, surveyrg.stop_) );
+    hp_isclassified.setParam( this, isclassified );
+    setScrollBarPolicy( true, uiGraphicsView::ScrollBarAlwaysOff );
+    setScrollBarPolicy( false, uiGraphicsView::ScrollBarAlwaysOff );
+    selidx_ = mUdf(int);
+    w2ui_ = new uiWorld2Ui( uiWorldRect(0,1,255,0),
+			   uiSize(viewWidth(),viewHeight()) );
+
+    markerlineitmgrp_ = new uiGraphicsItemGroup();
+    scene().addItem( markerlineitmgrp_ );
+
+    reDrawn.notify( mCB(this,uiColTabMarkerCanvas,drawMarkers) );
+    eraseNeeded().notify( mCB(this,uiColTabMarkerCanvas,eraseMarkers) );
+
+    meh_.buttonPressed.notify(mCB(this,uiColTabMarkerCanvas,mouseClk) );
+    meh_.movement.notify( mCB(this,uiColTabMarkerCanvas,mouseMove) );
+    meh_.doubleClick.notify( mCB(this,uiColTabMarkerCanvas,mouse2Clk) );
+    meh_.buttonReleased.notify(mCB(this,uiColTabMarkerCanvas,mouseRelease) );
+}
+
+
 uiColTabMarkerCanvas::~uiColTabMarkerCanvas()
 {
     detachAllNotifiers();
     delete w2ui_;
     hp_ctabrg.removeAndDeleteParam( this );
+    hp_isclassified.removeParam( this );
 }
 
 
@@ -285,6 +321,7 @@ void uiColTabMarkerCanvas::drawMarkers( CallBacker* )
     const int h = viewHeight();
     w2ui_->set( uiRect(0,0,w,h), uiWorldRect(0,1,255,0) );
     auto* ctabrg = hp_ctabrg.getParam(this);
+    auto isclassified = hp_isclassified.getParam( this );
 
     int decimals = 2;
     char format = 'f';
@@ -320,7 +357,43 @@ void uiColTabMarkerCanvas::drawMarkers( CallBacker* )
     }
 
     const int arrowsz = 15;
-    if ( ctab_.nrSegments() < 2 )
+    // TODO: The parts below are to be uncommented once setting classification
+    //	     works in uiODApplMgrAttrVisHandler::setHistogram
+/*    if ( ctab_.hasVariableSegments() && isClassified() )
+    {
+	const int ctabsz = ctab_.size();
+	int txttop = mUdf(int);
+	for ( int idx=0; idx<ctabsz-1; idx++ )
+	{
+	    const float val = (ctab_.position(idx)+ctab_.position(idx+1))/2;
+	    const uiWorldPoint wpt( 0, val );
+	    const uiPoint pt( w2ui_->transform(wpt) );
+
+	    auto* txtitem = new uiTextItem;
+	    txtitem->setTextColor( OD::Color::Anthracite() );
+	    txtitem->setText( tr("Class %1").arg(idx+1) );
+
+	    const int txtheight = txtitem->boundingRect().height();
+	    const int txtsz = txtitem->getTextSize().width();
+
+	    auto al = Alignment( Alignment::Left, Alignment::VCenter );
+	    int offset = 0;
+
+	    txtitem->setAlignment( al );
+	    txtitem->setPos( uiPoint(w-txtsz,pt.y_+offset) );
+
+	    const int curtxttop = pt.y_+offset-txtheight/4;
+	    if ( idx!=ctabsz-1 && curtxttop+txtheight>txttop )
+		delete txtitem;
+	    else
+	    {
+		markerlineitmgrp_->add( txtitem );
+		txttop = curtxttop;
+	    }
+	}
+    }
+    else */
+    if ( !ctab_.hasEqualSegments() )
     {
 	const int ctabsz = ctab_.size();
 	int txttop = mUdf(int);
@@ -377,7 +450,42 @@ void uiColTabMarkerCanvas::drawMarkers( CallBacker* )
 	    markerlineitmgrp_->add( arrowitem );
 	}
     }
-    else
+ //    else if ( isclassified && ctab_.hasEqualSegments() )
+ //    {
+	// const int nrseg = ctab_.nrSegments();
+	// const float segdist = 1.0f/nrseg;
+	// const int space = h/(nrseg+1);
+	// const int stride = ceil( (nrseg+1)/(nrseg/2) );
+	// auto* temptxtitm = new uiTextItem;
+	// temptxtitm->setText( tr("Class %1").arg(nrseg) );
+	// const float txtheight = temptxtitm->boundingRect().height();
+	// const float txtwidth = temptxtitm->boundingRect().width();
+	// delete temptxtitm;
+
+	// for ( int idx=0; idx<=nrseg; idx++ )
+	// {
+	//     const float val = idx*segdist+segdist/2;
+	//     const uiWorldPoint wpt( 0, val );
+	//     const uiPoint pt( w2ui_->transform(wpt) );
+
+	//     auto* txtitem = new uiTextItem;
+	//     txtitem->setTextColor( OD::Color::Anthracite() );
+	//     txtitem->setText( tr("Class %1").arg(idx+1) );
+
+	//     auto al = Alignment( Alignment::Left, Alignment::VCenter );
+	//     txtitem->setAlignment( al );
+
+	//     const int horizoffset = 10;
+	//     txtitem->setPos( uiPoint(w-txtwidth-horizoffset,pt.y_) );
+
+	//    if ( (idx+1==nrseg && nrseg%2!=0) || space>txtheight/mGoldenRatioF
+	//	 || (idx%stride==0 && idx!=nrseg-1) )
+	//	markerlineitmgrp_->add( txtitem );
+	//     else
+	//	delete txtitem;
+	// }
+ //    }
+    else /*if ( ctab_.hasEqualSegments() )*/
     {
 	const int nrseg = ctab_.nrSegments();
 	const float segdist = 1.0f/nrseg;
@@ -456,7 +564,7 @@ void uiColTabMarkerCanvas::eraseMarkers( CallBacker* )
 
 void uiColTabMarkerCanvas::mouseClk( CallBacker* )
 {
-    if ( ctab_.hasEqualSegments() )
+    if ( ctab_.hasEqualSegments() || isClassified() )
 	return;
 
     if ( meh_.isHandled() )
@@ -528,13 +636,31 @@ void uiColTabMarkerCanvas::markerChgd( CallBacker* )
 {
     markerChanged.trigger();
 
-    if ( !markerlineitmgrp_->isEmpty() )
+    if ( markerlineitmgrp_ && !markerlineitmgrp_->isEmpty() )
 	reDrawNeeded.trigger();
 }
+
 
 void uiColTabMarkerCanvas::setRange( const Interval<float> rg )
 {
     hp_ctabrg.setParam( this, new Interval<float>(rg.start_, rg.stop_) );
+}
+
+
+void uiColTabMarkerCanvas::setClassified( const bool isclassified )
+{
+    hp_isclassified.setParam( this, isclassified );
+    if ( markerlineitmgrp_ && !markerlineitmgrp_->isEmpty() )
+	reDrawNeeded.trigger();
+}
+
+
+bool uiColTabMarkerCanvas::isClassified()
+{
+    if ( hp_isclassified.hasParam( this ) )
+	return hp_isclassified.getParam( this );
+    else
+	return false;
 }
 
 
@@ -582,7 +708,7 @@ void uiColTabMarkerCanvas::mouse2Clk( CallBacker* )
     if ( meh_.isHandled() )
 	return;
 
-    if ( ctab_.nrSegments()>1 )
+    if ( ctab_.hasEqualSegments() || isClassified() )
 	return;
 
     const MouseEvent& ev = meh_.event();

@@ -16,7 +16,10 @@ ________________________________________________________________________
 #include "ioobj.h"
 #include "iopar.h"
 #include "keystrs.h"
+#include "datapack.h"
+#include "seisdatapack.h"
 #include "seisioobjinfo.h"
+#include "simpnumer.h"
 #include "zdomain.h"
 
 #include "uiattribpartserv.h"
@@ -182,7 +185,21 @@ bool uiODApplMgrAttrVisHandler::selectAttrib( const VisID& id, int attrib )
 
 void uiODApplMgrAttrVisHandler::setHistogram( const VisID& visid, int attrib )
 {
-    am_.colTabEd().setHistogram( am_.visServer()->getHistogram(visid,attrib) );
+    ConstRefMan<DataPack> dp = am_.visServer()->getDataPack( visid, attrib );
+    const auto* vdp = dCast(const SeisVolumeDataPack*,dp.ptr());
+
+    bool isclass = false;
+    // TODO: Currently vdp is always null. Need to figure out in a separate
+    //	     revision why, because then the classification check does not work.
+    if ( vdp )
+    {
+	const auto& array = vdp->data();
+	if ( array.getData() )
+	    isclass = holdsClassValues( array.getData(), array.totalSize() );
+    }
+
+    const auto* hist = am_.visServer()->getHistogram( visid, attrib );
+    am_.colTabEd().setHistogram( hist, isclass );
 }
 
 

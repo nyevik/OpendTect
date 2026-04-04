@@ -53,30 +53,36 @@ public:
 						     ColTab::Sequence&);
 				uiColTabMarkerCanvas(uiParent*,
 						     ColTab::Sequence&,
-						     const Interval<float>);
+						     Interval<float> rg);
+				uiColTabMarkerCanvas(uiParent*,
+						     ColTab::Sequence&,
+						     const Interval<float> rg,
+						     bool classified);
 				~uiColTabMarkerCanvas();
 
     Notifier<uiColTabMarkerCanvas> markerChanged;
     void			setRange(const Interval<float>);
+    void			setClassified(bool yn);
+    bool			isClassified();
     void			markerChgd(CallBacker*);
 
 protected:
 
-    uiWorld2Ui*                 w2ui_;
-    uiParent*	                parent_;
-    uiGraphicsItemGroup*	markerlineitmgrp_;
-    int		                selidx_;
-    ColTab::Sequence&           ctab_;
+    uiWorld2Ui*			w2ui_;
+    uiParent*			parent_;
+    uiGraphicsItemGroup*	markerlineitmgrp_	= nullptr;
+    int				selidx_;
+    ColTab::Sequence&		ctab_;
     MouseEventHandler&		meh_;
 
-    void                        addMarker(float,bool);
-    void                        removeMarker(int);
-    bool                        changeColor(int);
+    void			addMarker(float,bool);
+    void			removeMarker(int);
+    bool			changeColor(int);
 
-    void                        drawMarkers(CallBacker*);
+    void			drawMarkers(CallBacker*);
     void			eraseMarkers(CallBacker*);
-    void                        mouseClk(CallBacker*);
-    void                        mouse2Clk(CallBacker*);
-    void                        mouseRelease(CallBacker*);
-    void                        mouseMove(CallBacker*);
+    void			mouseClk(CallBacker*);
+    void			mouse2Clk(CallBacker*);
+    void			mouseRelease(CallBacker*);
+    void			mouseMove(CallBacker*);
 };

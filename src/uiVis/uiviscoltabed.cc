@@ -137,7 +137,10 @@ NotifierAccess& uiVisColTabEd::mapperChange()
 { return uicoltab_.scaleChanged; }
 
 void uiVisColTabEd::setHistogram( const TypeSet<float>* hist )
-{ uicoltab_.setHistogram( hist ); }
+{ setHistogram( hist, false ); }
+
+void uiVisColTabEd::setHistogram( const TypeSet<float>* hist, bool isclass )
+{ uicoltab_.setHistogram( hist, isclass ); }
 
 bool uiVisColTabEd::usePar( const IOPar& par )
 { return true; }
