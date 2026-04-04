@@ -70,6 +70,7 @@ public:
 			//! To get access to button in Manage ToolBar
     uiToolBar*		pluginTB();
     uiToolBar*		customTB(const char*);
+    MeasureToolMan*	measureToolMan()	{ return measuretoolman_; }
 
 			// Probably not needed by plugins
     void		updateStereoMenu();

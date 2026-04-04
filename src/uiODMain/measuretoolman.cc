@@ -27,7 +27,7 @@ MeasureToolMan::MeasureToolMan( uiODMain& appl )
     , picksetmgr_(Pick::SetMgr::getMgr("MeasureTool"))
 {
     butidx_ = appl.menuMgr().viewTB()->addButton( "measure",
-	tr("Display Distance"), mCB(this,MeasureToolMan,buttonClicked), true );
+	tr("Measure Distance"), mCB(this,MeasureToolMan,buttonClicked), true );
 
     TypeSet<SceneID> sceneids;
     appl.applMgr().visServer()->getSceneIds( sceneids );
@@ -56,6 +56,20 @@ MeasureToolMan::~MeasureToolMan()
 	const SceneID sceneid = sceneids_[idx];
 	appl_.applMgr().visServer()->removeObject( displayids_[idx], sceneid );
     }
+}
+
+
+void MeasureToolMan::open()
+{
+    manageDlg( true );
+    appl_.menuMgr().viewTB()->turnOn( butidx_, true );
+}
+
+
+void MeasureToolMan::close()
+{
+    manageDlg( false );
+    appl_.menuMgr().viewTB()->turnOn( butidx_, false );
 }
 
 

@@ -26,6 +26,9 @@ public:
 			MeasureToolMan(uiODMain&);
 			~MeasureToolMan();
 
+    void		open();
+    void		close();
+
 protected:
 
     void		objSelected(CallBacker*);
