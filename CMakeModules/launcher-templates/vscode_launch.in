@@ -2,27 +2,31 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "@EXEC_NAME@ (@VSCODE_CONFIG@)",
-            "type": "@VSCODE_DEBUGGER@",
+            "name": "CMake Debug",
+            "type": "@VSCODE_DEBUGGER_TYPE@",
             "request": "launch",
-            "program": "@VSCODE_PROGRAM@",
+            "program": "${command:cmake.launchTargetPath}",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "@VSCODE_CWD@",
-            "@VSCODE_ENVKEYWORD@": [
-                {
-                    "name": "DTECT_APPL",
-                    "value": "@OD_BINARY_BASEDIR@"
-                },
-                {
-                    "name": "OD_USER_PLUGIN_DIR",
-                    "value": "@CMAKE_BINARY_DIR@"
-                },
-                {
-                    "name": "PATH",
-                    "value": "@OD_BINARY_BASEDIR@/@OD_RUNTIME_DIRECTORY@@VSCODE_RUNTIMEPATH@@CMAKE_BINARY_DIR@/@OD_RUNTIME_DIRECTORY@"
-                }
-            ],
+            "cwd": "${command:cmake.launchTargetDirectory}",
+            "MIMode": "@VSCODE_MIMODE@",
+            "miDebuggerPath": "@VSCODE_MIPATH@",
+            "setupCommands": @VSCODE_SETUPCOMMANDS@,
+            "environment": @VSCODE_DEBUGENV@,
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "CMake Debug in release mode",
+            "type": "@VSCODE_DEBUGGER_TYPE@",
+            "request": "launch",
+            "program": "${command:cmake.launchTargetPath}",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${command:cmake.launchTargetDirectory}",
+            "MIMode": "@VSCODE_MIMODE@",
+            "miDebuggerPath": "@VSCODE_MIPATH@",
+            "setupCommands": @VSCODE_SETUPCOMMANDS@,
+            "environment": @VSCODE_RELENV@,
             "console": "integratedTerminal"
         }
     ]
