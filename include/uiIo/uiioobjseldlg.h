@@ -40,7 +40,7 @@ public:
 			    , multisel_(false)
 			    , allowsetsurvdefault_(true)
 			    , withwriteopts_(true)
-			    , withinserters_(true)		{}
+			    , withinserters_(false)		{}
 		virtual	~Setup()				{}
 
 	mDefSetupMemb(uiString,titletext)

@@ -36,7 +36,7 @@ const char* uiSeisCopyCube::copyCubeProgName()
 }
 
 uiSeisCopyCube::uiSeisCopyCube( uiParent* p, const IOObj* startobj )
-    : uiDialog(p,Setup(tr("Copy cube"),mODHelpKey(mSeisCopyHelpID)))
+    : uiDialog(p,Setup(tr("Copy Cube"),mODHelpKey(mSeisCopyHelpID)))
     , ismc_(false)
 {
     setCtrlStyle( RunAndClose );
@@ -44,7 +44,8 @@ uiSeisCopyCube::uiSeisCopyCube( uiParent* p, const IOObj* startobj )
     const Seis::GeomType gt = Seis::Vol;
     IOObjContext inctxt( uiSeisSel::ioContext(gt,true) );
     uiSeisSel::Setup sssu( gt );
-    sssu.steerpol( uiSeisSel::Setup::InclSteer ).enabotherdomain( true );
+    sssu.steerpol( uiSeisSel::Setup::InclSteer ).enabotherdomain( true )
+	.withinserters(false);
 
     inpfld_ = new uiSeisSel( this, inctxt, sssu );
     if ( startobj )
@@ -62,6 +63,7 @@ uiSeisCopyCube::uiSeisCopyCube( uiParent* p, const IOObj* startobj )
     transffld_->attach( alignedBelow, compfld_ );
 
     IOObjContext outctxt( uiSeisSel::ioContext(gt,false) );
+    sssu.enabotherdomain( false );
     outfld_ = new uiSeisSel( this, outctxt, sssu );
     outfld_->attach( alignedBelow, transffld_ );
 

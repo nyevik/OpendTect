@@ -33,7 +33,6 @@ ________________________________________________________________________
 #include "uibuttongroup.h"
 #include "uicombobox.h"
 #include "uigeninput.h"
-#include "uiioobjinserter.h"
 #include "uilabel.h"
 #include "uilistbox.h"
 #include "uilistboxfilter.h"
@@ -81,18 +80,6 @@ void uiEMAttrSelDlg::initAndBuild( const uiString& seltxt,
 
     createSelectionButtons();
     createSelectionFields();
-
-    CtxtIOObj* ctio = mMkCtxtIOObj( SeisTrc );
-    if ( ctio )
-    {
-	const BufferStringSet nms;
-	uiButton* but = uiIOObjInserter::createInsertButton( this, *ctio,
-							    inserters_, nms );
-	for ( auto* inserter : inserters_ )
-	    mAttachCB( inserter->objInserted, uiEMAttrSelDlg::objInserted );
-
-	but->attach( ensureBelow, selgrp_ );
-    }
 
     int seltyp = sLastSelType;
     int storcur = -1, attrcur = -1, nlacur = -1;
@@ -184,7 +171,6 @@ uiEMAttrSelDlg::~uiEMAttrSelDlg()
     delete attribfilterfld_;
     delete selgrp_;
     delete attrinf_;
-    deepErase( inserters_ );
 }
 
 
@@ -454,23 +440,6 @@ bool uiEMAttrSelDlg::getAttrData( bool needattrmatch )
     attrdata_.attribid_ = SelSpec::cAttribNotSel();
     attrdata_.outputnr_ = -1;
 
-    if ( !insertedobjmid_.isUdf() )
-    {
-	PtrMan<IOObj> ioobj = IOM().get( insertedobjmid_ );
-	if ( !ioobj )
-	    return false;
-
-	descset = usedasinput_
-		? const_cast<DescSet*>( &attrdata_.attrSet() )
-		: eDSHolder().getDescSet( is2D(), true );
-	attrdata_.attribid_ = descset->getStoredID( ioobj->key(), 0, true );
-	attrdata_.compnr_ = 0;
-	if ( !usedasinput_ && descset )
-	    attrdata_.setAttrSet( descset );
-
-	return true;
-    }
-
     if ( !selgrp_ || !in_action_ )
 	return true;
 
@@ -567,20 +536,6 @@ bool uiEMAttrSelDlg::acceptOK( CallBacker* )
 {
     sLastSelType = selType();
     return getAttrData(true);
-}
-
-
-void uiEMAttrSelDlg::objInserted( CallBacker* cb )
-{
-    if ( !cb || !cb->isCapsule() )
-	return;
-
-    mCBCapsuleUnpack( const MultiID&, ky, cb );
-    if ( !ky.isUdf() )
-    {
-	insertedobjmid_ = ky;
-	accept( 0 );
-    }
 }
 
 

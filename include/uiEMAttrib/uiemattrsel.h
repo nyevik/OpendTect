@@ -32,7 +32,6 @@ class NLAModel;
 class TrcKeyZSampling;
 class uiButtonGroup;
 class uiGenInput;
-class uiIOObjInserter;
 class uiLabeledComboBox;
 class uiListBox;
 class uiListBoxFilter;
@@ -98,7 +97,6 @@ protected:
     bool		showsteerdata_;
     BufferString	zdomainkey_;
 
-    MultiID		insertedobjmid_;
     const MultiID	hormid_;
 
     uiButtonGroup*	selgrp_					= nullptr;
@@ -121,9 +119,6 @@ protected:
     uiGenInput*		attr2dfld_				= nullptr;
     uiLabeledComboBox*	compfld_				= nullptr;
 
-    ObjectSet<uiIOObjInserter> inserters_;
-    ObjectSet<uiButton> extselbuts_;
-
     void		initAndBuild(const uiString&,Attrib::DescID);
     void		createSelectionButtons();
     void		createSelectionFields();
@@ -133,7 +128,6 @@ protected:
     void		selDone(CallBacker*);
     void		filtChg(CallBacker*);
     void		cubeSel(CallBacker*);
-    void		objInserted(CallBacker*);
     bool		acceptOK(CallBacker*) override;
 };
 

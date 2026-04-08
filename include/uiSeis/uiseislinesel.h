@@ -36,10 +36,12 @@ mExpClass(uiSeis) uiSeis2DLineChoose : public uiGroup
 { mODTextTranslationClass(uiSeis2DLineChoose);
 public:
 			uiSeis2DLineChoose(uiParent*,
-					OD::ChoiceMode cm=OD::ChooseOnlyOne);
+					OD::ChoiceMode cm=OD::ChooseOnlyOne,
+					bool withinserter=false);
 			uiSeis2DLineChoose(uiParent*,
 					   const TypeSet<Pos::GeomID>&,
-					   OD::ChoiceMode cm);
+					   OD::ChoiceMode cm,
+					   bool withinserter=false);
 			~uiSeis2DLineChoose();
 
     void		getChosen(TypeSet<Pos::GeomID>&) const;
@@ -68,7 +70,7 @@ protected:
 			uiSeis2DLineChoose(uiParent*,OD::ChoiceMode,
 			    const BufferStringSet&,const TypeSet<Pos::GeomID>&);
 
-    void		init(OD::ChoiceMode);
+    void		init(OD::ChoiceMode,bool withinserter);
 };
 
 

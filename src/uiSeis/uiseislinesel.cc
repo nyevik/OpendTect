@@ -36,24 +36,13 @@ ________________________________________________________________________
 
 
 // uiSeis2DLineChoose
-uiSeis2DLineChoose::uiSeis2DLineChoose( uiParent* p, OD::ChoiceMode cm )
+uiSeis2DLineChoose::uiSeis2DLineChoose( uiParent* p, OD::ChoiceMode cm,
+					bool withinserter )
     : uiGroup(p,"Line chooser")
 {
     SeisIOObjInfo::getLinesWithData( lnms_, geomids_ );
     Survey::sortByLinename( geomids_, &lnms_ );
-    init( cm );
-
-    PtrMan<CtxtIOObj> ctio = mMkCtxtIOObj( SeisTrc2D );
-    if ( ctio )
-    {
-	const BufferStringSet nms;
-	uiButton* but = uiIOObjInserter::createInsertButton( this, *ctio,
-							     inserters_, nms );
-	for ( auto* inserter : inserters_ )
-	    mAttachCB(inserter->objInserted, uiSeis2DLineChoose::objInserted );
-
-	but->attach( centeredLeftOf, listfld_ );
-    }
+    init( cm, withinserter );
 }
 
 
@@ -63,18 +52,18 @@ uiSeis2DLineChoose::uiSeis2DLineChoose( uiParent* p, OD::ChoiceMode cm,
     , geomids_(gids)
 {
     Survey::sortByLinename( geomids_, &lnms_ );
-    init( cm );
+    init( cm, false );
 }
 
 
 uiSeis2DLineChoose::uiSeis2DLineChoose( uiParent* p,
 					const TypeSet<Pos::GeomID>& gids,
-					OD::ChoiceMode cm )
+					OD::ChoiceMode cm, bool withinserter )
     : uiGroup(p,"Line chooser")
     , geomids_(gids)
 {
     Survey::sortByLinename( geomids_, &lnms_ );
-    init( cm );
+    init( cm, withinserter );
 }
 
 
@@ -103,7 +92,7 @@ void uiSeis2DLineChoose::objInserted( CallBacker* cb )
 }
 
 
-void uiSeis2DLineChoose::init( OD::ChoiceMode cm )
+void uiSeis2DLineChoose::init( OD::ChoiceMode cm, bool withinserter )
 {
     listfld_ = new uiListBox( this, "Lines", cm );
     listfld_->setHSzPol( uiObject::MedVar );
@@ -117,6 +106,18 @@ void uiSeis2DLineChoose::init( OD::ChoiceMode cm )
 		   uiSeis2DLineChoose::readChoiceDone );
 	mAttachCB( lbchoiceio_->storeRequested,
 		   uiSeis2DLineChoose::writeChoiceReq );
+    }
+
+    PtrMan<CtxtIOObj> ctio = mMkCtxtIOObj( SeisTrc2D );
+    if ( withinserter && ctio )
+    {
+	const BufferStringSet nms;
+	uiButton* but = uiIOObjInserter::createInsertButton( this, *ctio,
+							     inserters_, nms );
+	for ( auto* inserter : inserters_ )
+	    mAttachCB(inserter->objInserted, uiSeis2DLineChoose::objInserted );
+
+	but->attach( centeredLeftOf, listfld_ );
     }
 
     setHAlignObj( listfld_ );

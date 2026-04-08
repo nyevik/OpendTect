@@ -170,7 +170,7 @@ void uiIOObjSelDlg::statusMsgCB( CallBacker* cb )
 uiIOObjSel::Setup::Setup( const uiString& seltxt )
     : uiIOSelect::Setup(seltxt)
     , confirmoverwr_(true)
-    , withinserters_(true)
+    , withinserters_(false)
     , withwriteopts_(true)
     , filldef_(true)
 {}

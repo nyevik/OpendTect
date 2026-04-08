@@ -36,7 +36,6 @@ ________________________________________________________________________
 #include "uibuttongroup.h"
 #include "uicombobox.h"
 #include "uigeninput.h"
-#include "uiioobjinserter.h"
 #include "uilabel.h"
 #include "uilistbox.h"
 #include "uilistboxfilter.h"
@@ -123,7 +122,6 @@ void uiAttrSelData::fillSelSpec( SelSpec& as ) const
 	, usedasinput_(stp.isinp4otherattrib_) \
 	, showsteerdata_(stp.showsteeringdata_) \
 	, geomid_(stp.geomid_) \
-	, insertedobjmid_(MultiID::udf())
 
 
 uiAttrSelDlg::uiAttrSelDlg( uiParent* p, const uiAttrSelData& atd,
@@ -162,18 +160,6 @@ void uiAttrSelDlg::initAndBuild( const uiString& seltxt,
 
     createSelectionButtons();
     createSelectionFields();
-
-    CtxtIOObj* ctio = mMkCtxtIOObj( SeisTrc );
-    if ( ctio )
-    {
-	const BufferStringSet nms;
-	uiButton* but = uiIOObjInserter::createInsertButton( this, *ctio,
-							    inserters_, nms );
-	for ( auto* inserter : inserters_ )
-	    mAttachCB( inserter->objInserted, uiAttrSelDlg::objInserted );
-	if ( but )
-	    but->attach( ensureBelow, selgrp_ );
-    }
 
     int seltyp = 0;
     int storcur = -1, attrcur = -1, nlacur = -1;
@@ -263,7 +249,6 @@ uiAttrSelDlg::~uiAttrSelDlg()
     delete attribfilterfld_;
     delete selgrp_;
     delete attrinf_;
-    deepErase( inserters_ );
 }
 
 
@@ -282,13 +267,13 @@ void uiAttrSelDlg::createSelectionButtons()
     const bool havesteered = attrinf_->steernms_.size();
 
     selgrp_ = new uiButtonGroup( this, "Input selection", OD::Vertical );
-    storfld_ = new uiRadioButton( selgrp_, uiStrings::sStored() );
+    storfld_ = new uiRadioButton( selgrp_, tr("Stored Volumes") );
     storfld_->activated.notify( mCB(this,uiAttrSelDlg,selDone) );
     storfld_->setSensitive( havestored );
 
     if ( showsteerdata_ )
     {
-	steerfld_ = new uiRadioButton( selgrp_, uiStrings::sSteering() );
+	steerfld_ = new uiRadioButton( selgrp_, tr("Steering Cubes") );
 	steerfld_->activated.notify( mCB(this,uiAttrSelDlg,selDone) );
 	steerfld_->setSensitive( havesteered );
     }
@@ -544,22 +529,6 @@ bool uiAttrSelDlg::getAttrData( bool needattrmatch )
     attrdata_.attribid_ = DescID::undef();
     attrdata_.outputnr_ = -1;
 
-    if ( !insertedobjmid_.isUdf() )
-    {
-	PtrMan<IOObj> ioobj = IOM().get( insertedobjmid_ );
-	if ( !ioobj )
-	    return false;
-
-	descset = usedasinput_ ? const_cast<DescSet*>( &attrdata_.attrSet() )
-			       : eDSHolder().getDescSet( is2D(), true );
-	attrdata_.attribid_ = descset->getStoredID( ioobj->key(), 0, true );
-	attrdata_.compnr_ = 0;
-	if ( !usedasinput_ && descset )
-	    attrdata_.setAttrSet( descset );
-
-	return true;
-    }
-
     if ( !selgrp_ || !in_action_ )
 	return true;
 
@@ -668,20 +637,6 @@ void uiAttrSelDlg::replaceStoredByInMem()
 }
 
 
-void uiAttrSelDlg::objInserted( CallBacker* cb )
-{
-    if ( !cb || !cb->isCapsule() )
-	return;
-
-    mCBCapsuleUnpack( const MultiID&, ky, cb );
-    if ( !ky.isUdf() )
-    {
-	insertedobjmid_ = ky;
-	accept( 0 );
-    }
-}
-
-
 void uiAttrSelDlg::fillSelSpec( SelSpec& as ) const
 {
     attrdata_.fillSelSpec( as );
@@ -694,7 +649,7 @@ uiString uiAttrSel::cDefLabel()
 }
 
 uiAttrSel::uiAttrSel( uiParent* p, const DescSet& ads, const uiString& txt,
-		      DescID curid, bool isinp4otherattrib )
+		      const DescID& curid, bool isinp4otherattrib )
     : uiIOSelect(p,uiIOSelect::Setup(txt.isEmpty() ? cDefLabel() : txt),
 		 mCB(this,uiAttrSel,doSel))
     , attrdata_(ads)

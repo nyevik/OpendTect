@@ -21,7 +21,7 @@ public:
 			uiWellSel(uiParent*,bool forread,const Setup&);
 			uiWellSel(uiParent*,bool forread,
 				const uiString& seltxt=uiString::emptyString(),
-				bool withinserters=true);
+				bool withinserters=false);
 			~uiWellSel();
 
 protected:
