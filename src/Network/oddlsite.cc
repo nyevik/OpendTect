@@ -78,10 +78,19 @@ bool ODDLSite::getFile( const char* relfnm, const char* outfnm,
     uiRetVal uirv;
     if ( !outfnm )
     {
-	databuf_ = new DataBuffer( 0, 1, true );
-	uirv = Network::downloadToBuffer(fullURL(relfnm),*databuf_,taskrunner);
+	BufferString bs;
+	uirv = Network::downloadToString( fullURL(relfnm), bs, taskrunner );
+
 	if( uirv.isError() )
 	    errmsg_ = uirv.messages().cat();
+
+    delete databuf_;
+	databuf_ = new DataBuffer( bs.size(), 1 );
+    if( !databuf_->isOk() )
+	return false;
+
+    if ( !bs.isEmpty() )
+	OD::memCopy( (char*)databuf_->data(), bs.str(), databuf_->size() );
 
 	return uirv.isOK();
     }
@@ -101,20 +110,16 @@ bool ODDLSite::getLocalFile( const char* relfnm, const char* outfnm )
     if ( outfnm && *outfnm )
 	return File::copy( inpfnm, outfnm );
 
-    od_istream strm( inpfnm );
-    if ( !strm.isOK() )
-	{ errmsg_ = uiStrings::phrCannotOpenForRead( inpfnm ); return false; }
-
     BufferString bs;
-    const bool isok = strm.getAll( bs );
-    if ( isok )
-    {
-	delete databuf_;
-	databuf_ = new DataBuffer( bs.size(), 1 );
-	OD::memCopy( (char*)databuf_->data(), bs.buf(), databuf_->size() );
-    }
+    if ( !File::getContent(inpfnm, bs) )
+	return false;
 
-    return isok;
+    delete databuf_;
+    databuf_ = new DataBuffer( bs.size(), 1 );
+    if ( databuf_->isOk() && !bs.isEmpty() )
+	OD::memCopy( (char*)databuf_->data(), bs.str(), databuf_->size() );
+
+    return true;
 }
 
 

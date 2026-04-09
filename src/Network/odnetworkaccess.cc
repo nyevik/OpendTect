@@ -122,10 +122,8 @@ od_int64 Network::getFileSize( const char* url )
 
 bool Network::getContent( const char* url, BufferString& bs )
 {
-    uiString msg; DataBuffer dbuf(0,1);
-    if ( downloadToBuffer(url,dbuf).isError() || !dbuf.fitsInString() )
+    if ( downloadToString(url,bs).isError() )
 	return false;
-    bs = dbuf.getString();
     return true;
 }
 
@@ -180,14 +178,13 @@ uiRetVal Network::downloadFiles( BufferStringSet& urls,
 }
 
 
-uiRetVal Network::downloadToBuffer( const char* url, DataBuffer& databuffer,
+uiRetVal Network::downloadToString( const char* url, BufferString& str,
 				    TaskRunner* taskr )
 {
-    databuffer.reSize( 0, false );
-    databuffer.reByte( 1, false );
+    DataBuffer databuffer( 0, 1 );
     FileDownloader dl( url, databuffer );
     const bool res = TaskRunner::execute( taskr, dl );
-
+    str = databuffer.getString();
     return res ? uiRetVal::OK() : dl.allMessages();
 }
 

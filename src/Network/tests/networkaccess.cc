@@ -71,17 +71,16 @@ bool testPing()
 }
 
 
-bool testDownloadToBuffer()
+bool testDownloadToString()
 {
     const char* url = "https://opendtect.org/dlsites.txt";
-    DataBuffer db( 1000, 4 );
-
-    uiRetVal uirv = Network::downloadToBuffer( url, db );
+    BufferString bs;
+    const uiRetVal uirv = Network::downloadToString( url, bs );
     mRunStandardTestWithError( uirv.isOK(),
-	    BufferString(prefix_, "Download to buffer"), uirv.getText() );
+	BufferString(prefix_, "Download to string"), uirv.getText() );
 
-    mRunStandardTest( db.size()==54,
-		      BufferString(prefix_, "Download to buffer size") );
+    mRunStandardTest( bs.size()==54,
+	      BufferString(prefix_, "Download to string size") );
 
     return true;
 }
@@ -249,7 +248,7 @@ bool runTests()
     if ( !testPing() )
 	return false;
 
-    if ( !testDownloadToBuffer() )
+    if ( !testDownloadToString() )
 	return false;
 
     if ( !testDownloadToFile() )

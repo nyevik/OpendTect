@@ -41,8 +41,8 @@ namespace Network
 					    TaskRunner* =nullptr,
 					    bool canfail =false);
 
-    mGlobal(Network) uiRetVal downloadToBuffer(const char* url,DataBuffer&,
-					       TaskRunner* =nullptr);
+    mGlobal(Network) uiRetVal downloadToString(const char* url,BufferString&,
+						TaskRunner* =nullptr);
 
     mGlobal(Network) bool   uploadFile(const char* url,const char* localfname,
 				       const char* remotefname,
@@ -86,6 +86,10 @@ namespace Network
     mGlobal(Network) bool	exists(const char*);
     mGlobal(Network) od_int64	getFileSize(const char*);
     mGlobal(Network) bool	getContent(const char*,BufferString&);
+
+    mDeprecated("Use downloadToString")
+	mGlobal(Network) uiRetVal downloadToBuffer(const char* url,DataBuffer&,
+						   TaskRunner* =nullptr);
 
 } // namespace Network
 
