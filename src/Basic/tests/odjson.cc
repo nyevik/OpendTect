@@ -23,7 +23,7 @@ static ValueSet* jsontree;
 static const char* jsonstrs[] = {
 
 // one good
-"{ \"type\": \"FeatureCollection\", \"name\": \"3D Seismic\", \"root\": \"/auto/d43/surveys\", \"crs\": { \"type\": \"name\", \"properties\": { \"name\": \"urn:ogc:def:crs:OGC:1.3:CRS84\" } }, \"features\": [ { \"type\": \"Feature\", \"properties\": { \"id\": \"Z3NAM1982A\", \"name\": \"F3_Demo_d30\" }, \"geometry\": { \"type\": \"Polygon\", \"coordinates\": [ [ [ 7, 55.0554844553, 0 ], [ 6, 55.0556671475, 0 ], [ 6, 54.9236026526, 0 ], [ 7, 54.9229699809, 0 ], [ 7, 55.0554844553, 0 ] ] ] } }, { \"type\": \"Feature\", \"properties\": { \"id\": \"Z3GDF2010A\", \"name\": \"MagellanesBasin\" }, \"geometry\": { \"type\": \"Polygon\", \"coordinates\": [ [ [ 9, 53.8820024932, 0 ], [ 7, 53.877063624,  0 ], [ 7, 53.7857242316, 0 ], [ 8, 53.7419173548, 0 ], [ 9, 53.7461123222, 0 ], [ 9, 53.8820024932, 0 ] ] ] } } ] }",
+"{ \"type\": \"FeatureCollection\", \"name\": \"3D Seismic\", \"root\": \"/auto/d43/surveys\", \"crs\": { \"type\": \"name\", \"properties\": { \"name\": \"urn:ogc:def:crs:OGC:1.3:CRS84\" } }, \"numbers\": { \"int32\": 12345, \"double\": 12.345, \"undefint\": 2109876543, \"undefint64\": 9223344556677889900 }, \"features\": [ { \"type\": \"Feature\", \"properties\": { \"id\": \"Z3NAM1982A\", \"name\": \"F3_Demo_d30\" }, \"geometry\": { \"type\": \"Polygon\", \"coordinates\": [ [ [ 7, 55.0554844553, 0 ], [ 6, 55.0556671475, 0 ], [ 6, 54.9236026526, 0 ], [ 7, 54.9229699809, 0 ], [ 7, 55.0554844553, 0 ] ] ] } }, { \"type\": \"Feature\", \"properties\": { \"id\": \"Z3GDF2010A\", \"name\": \"MagellanesBasin\" }, \"geometry\": { \"type\": \"Polygon\", \"coordinates\": [ [ [ 9, 53.8820024932, 0 ], [ 7, 53.877063624,  0 ], [ 7, 53.7857242316, 0 ], [ 8, 53.7419173548, 0 ], [ 9, 53.7461123222, 0 ], [ 9, 53.8820024932, 0 ] ] ] } } ] }",
 
 // any number of bad ones
 "\"aap\": \"noot\"]",
@@ -34,24 +34,26 @@ nullptr
 
 };
 
-static const char* sKeyInterval()	{ return  "Interval"; }
+static const char* sKeyIInterval()	{ return  "IInterval"; }
+static const char* sKeyFInterval()	{ return  "FInterval"; }
 
 
-static bool testParseJSON()
+static bool testParseJSON( bool allowmixed )
 {
     BufferStringSet bss( jsonstrs );
     int idx = 0;
-    for ( auto strptr : bss )
+    for ( auto* strptr : bss )
     {
 	BufferString& str = *strptr;
 	if ( idx )
 	    tstStream() << "\t>> '" << str << "' <<" << od_endl;
 
 	uiRetVal uirv;
-	ValueSet* tree = ValueSet::getFromJSon( str.getCStr(), str.size(),uirv);
+	ValueSet* tree = ValueSet::getFromJSon( str.getCStr(), str.size(),
+						uirv, allowmixed );
 	const bool isok = uirv.isOK();
 	if ( !isok )
-	    logStream() << "\tmsg=" << toString(uirv) << od_endl;
+	    errStream() << "\tmsg=" << uirv << od_endl;
 
 	if ( idx )
 	    mRunStandardTest( !isok, "Parse bad string" )
@@ -73,7 +75,7 @@ static bool testParseJSON()
     mRunStandardTest( ptr != 0, #nm " present" )
 
 
-static bool testUseJSON( bool created )
+static bool testUseJSON( bool created, bool allowmixed )
 {
     const Object& tree = jsontree->asObject();
     tstStream() << "\n\nUse JSON, " << (created ? "Constructed." : "Original.")
@@ -85,6 +87,18 @@ static bool testUseJSON( bool created )
     mCheckNonNull( crspropobj, crs.properties );
     BufferString namestr = crspropobj->getStringValue( "name" );
     mRunStandardTest( namestr=="urn:ogc:def:crs:OGC:1.3:CRS84", "crs name" );
+
+    const auto* numobj = tree.getObject( "numbers" );
+    mCheckNonNull( numobj, numbers );
+    mRunStandardTest( mIsEqual(numobj->getDoubleValue("double"),12.345,1e-5f),
+		      "Double in object" )
+    mRunStandardTest( numobj->getIntValue("int32")==12345, "Integer in object" )
+    const int undefintval = mCast(int,numobj->getIntValue("undefint"));
+    mRunStandardTest( mIsUdf(undefintval),
+		      "Undefined integer 32-bit in object" )
+    const od_int64 undefint64val = numobj->getIntValue("undefint64");
+    mRunStandardTest( mIsUdf(undefint64val),
+		      "Undefined integer 64-bit in object" )
 
     const auto* featsarr = tree.getArray( "features" );
     mCheckNonNull( featsarr, features );
@@ -120,9 +134,8 @@ static bool testUseJSON( bool created )
     mRunStandardTest( point3.valType()==OD::JSON::ValueSet::Data,
 			       "array type" );
 
-    const auto& val_ts = point3.valArr().vals();
-    const Coord3 coord( val_ts[0], val_ts[1], val_ts[2] );
-    mRunStandardTest( coord==Coord3(8,53.7419173548,0), "coordinate value" );
+    const Coord3 coord = point3.getCoord3();
+    mRunStandardTest( coord==Coord3(8.,53.7419173548,0.), "coordinate value" );
 
     return true;
 }
@@ -167,6 +180,16 @@ static bool testCreateJSON()
     crsobj->set( "type", "name" );
     Object* crspropsobj = crsobj->set( "properties", new Object );
     crspropsobj->set( "name", "urn:ogc:def:crs:OGC:1.3:CRS84" );
+
+    Object* numobj = topobj.set( "numbers", new Object );
+    const double adouble = 12.345;
+    const int anint = 12345;
+    const int undefint = mUdf(int);
+    const od_int64 undefint64 = mUdf(od_int64);
+    numobj->set( "int32", anint );
+    numobj->set( "double", adouble );
+    numobj->set( "undefint", undefint );
+    numobj->set( "undefint64", undefint64 );
 
     Array* featarr = topobj.set( "features", new Array(true) );
     Array* polyarr = createFeatCoordArray( featarr, "Z3NAM1982A", "F3_Demo_d30",
@@ -226,14 +249,38 @@ static bool testDumpJSON()
 
 bool testInterval()
 {
-    OD::JSON::Object obj;
-    const StepInterval<int> intervalwrite( 10, 20, 5 );
-    obj.set( sKeyInterval(), intervalwrite );
+    {
+	OD::JSON::Object obj;
+	const Interval<int> iintervalwrite( 10, 20 );
+	const Interval<float> fintervalwrite( 1.234f, 2.348f );
+	obj.set( sKeyIInterval(), iintervalwrite );
+	obj.set( sKeyFInterval(), fintervalwrite );
 
-    StepInterval<int> intervalread;
-    obj.get( sKeyInterval(), intervalread );
-    mRunStandardTest( intervalread == intervalwrite,
-	   "Checking SetInterval And GetInterval" );
+	Interval<int> iintervalread;
+	Interval<float> fintervalread;
+	obj.get( sKeyIInterval(), iintervalread );
+	mRunStandardTest( iintervalread == iintervalwrite,
+			  "Checking SetInterval<int> And GetInterval<int>" )
+	obj.get( sKeyFInterval(), fintervalread );
+	mRunStandardTest( fintervalread.isEqual(fintervalwrite,1e-6f),
+			  "Checking SetInterval<float> And GetInterval<float>" )
+    }
+    {
+	OD::JSON::Object obj;
+	const StepInterval<int> iintervalwrite( 10, 20, 5 );
+	const StepInterval<float> fintervalwrite( 1.234f, 2.348f, 0.004f );
+	obj.set( sKeyIInterval(), iintervalwrite );
+	obj.set( sKeyFInterval(), fintervalwrite );
+
+	StepInterval<int> iintervalread;
+	StepInterval<float> fintervalread;
+	obj.get( sKeyIInterval(), iintervalread );
+	mRunStandardTest( iintervalread == iintervalwrite,
+		"Checking SetStepInterval<int> And GetStepInterval<int>" )
+	obj.get( sKeyFInterval(), fintervalread );
+	mRunStandardTest( fintervalread.isEqual(fintervalwrite,1e-6f),
+		"Checking SetStepInterval<float> And GetStepInterval<float>" )
+    }
 
     return true;
 }
@@ -366,9 +413,8 @@ bool testArray2D()
 			       "Parsed an object string into a JSON::Object",
 			       uirv.getText() );
 
-
     Array2DImpl<int> arrin_int(1,1);
-    if ( jsobj_in.get("array2d_int", arrin_int) )
+    if ( jsobj_in.get("array2d_int",arrin_int) )
     {
 	const int szrows = arrin_int.getSize(0);
 	const int szcols = arrin_int.getSize(1);
@@ -506,7 +552,8 @@ static bool testDataType()
     Array* jsobjarr = jsobj.set( "arrayOfObjects", new Array(true) );
     Array* jsarrarr = jsobj.set( "arrayOfArrays", new Array(false) );
     Array* jsboolarr = jsobj.set( "arrayOfBoolean", new Array(Boolean) );
-    Array* jsnumarr = jsobj.set( "arrayOfNumbers", new Array(Number) );
+    Array* jsdnumarr = jsobj.set( "arrayOfNumbers", new Array(Number) );
+    Array* jsinumarr = jsobj.set( "arrayOfINumbers", new Array(INumber) );
     Array* jsstringsarr = jsobj.set( "arrayOfStrings", new Array(String) );
     Array* jsmixedarr = jsobj.set( "mixedArray", new Array(Mixed) );
 
@@ -515,63 +562,67 @@ static bool testDataType()
     mRunStandardTest( jsobj.valueType(idx) == ValueSet::Data &&
 		      jsobj.isPlainData(idx) &&
 		      jsobj.dType(idx++) == Boolean,
-		      "Boolean json data object - true" );
+		      "Boolean json data object - true" )
     mRunStandardTest( jsobj.valueType(idx) == ValueSet::Data &&
 		      jsobj.isPlainData(idx) &&
 		      jsobj.dType(idx++) == Boolean,
-		      "Boolean json data object - false" );
+		      "Boolean json data object - false" )
     mRunStandardTest( jsobj.valueType(idx) == ValueSet::Data &&
 		      jsobj.isPlainData(idx) &&
 		      jsobj.dType(idx++) == Number,
-		      "Number json data object - double" );
+		      "Number json data object - double" )
     mRunStandardTest( jsobj.valueType(idx) == ValueSet::Data &&
 		      jsobj.isPlainData(idx) &&
-		      jsobj.dType(idx++) == Number,
-		      "Number json data object - integer" );
+		      jsobj.dType(idx++) == INumber,
+		      "Number json data object - integer" )
     mRunStandardTest( jsobj.valueType(idx) == ValueSet::Data &&
 		      jsobj.isPlainData(idx) &&
 		      jsobj.dType(idx++) == String,
-		      "String json data object - string" );
+		      "String json data object - string" )
     mRunStandardTest( jsobj.valueType(idx) == ValueSet::SubObject &&
 		      jsobj.isObjectChild(idx++) && !jssubobj->isArray(),
-		      "Object json data object - sub object" );
+		      "Object json data object - sub object" )
     mRunStandardTest( jsobj.valueType(idx++) == ValueSet::SubArray &&
 		      jsobj.isArrayChild(idx) && jsobjarr->isArray(),
-		      "Array json data object - sub array of objects" );
+		      "Array json data object - sub array of objects" )
     mRunStandardTest( jsobj.valueType(idx++) == ValueSet::SubArray &&
 		      jsobj.isArrayChild(idx) && jsarrarr->isArray(),
-		      "Array json data object - sub array of arrays" );
+		      "Array json data object - sub array of arrays" )
     mRunStandardTest( jsobj.valueType(idx++) == ValueSet::SubArray &&
 		      jsboolarr->isArray() &&
 		      jsboolarr->dataType() == DataType::Boolean,
-		      "Array json data object - sub array of booleans" );
+		      "Array json data object - sub array of booleans" )
     mRunStandardTest( jsobj.valueType(idx++) == ValueSet::SubArray &&
-		      jsnumarr->isArray() &&
-		      jsnumarr->dataType() == DataType::Number,
-		      "Array json data object - sub array of numbers" );
+		      jsdnumarr->isArray() &&
+		      jsdnumarr->dataType() == DataType::Number,
+		      "Array json data object - sub array of double numbers" )
+    mRunStandardTest( jsobj.valueType(idx++) == ValueSet::SubArray &&
+		      jsinumarr->isArray() &&
+		      jsinumarr->dataType() == DataType::INumber,
+		      "Array json data object - sub array of integers numbers" )
     mRunStandardTest( jsobj.valueType(idx++) == ValueSet::SubArray &&
 		      jsstringsarr->isArray() &&
 		      jsstringsarr->dataType() == DataType::String,
-		      "Array json data object - sub array of strings" );
+		      "Array json data object - sub array of strings" )
     mRunStandardTest( jsobj.valueType(idx++) == ValueSet::SubArray &&
 		      jsmixedarr->isArray() &&
 		      jsmixedarr->dataType() == DataType::Mixed,
-		      "Array json data object - sub array of mixed type" );
+		      "Array json data object - sub array of mixed type" )
 
     jsmixedarr->add( true ).add( false ).add( 3.142 ).add( 50 )
 	       .add( "Hello again" );
 
     idx = 0;
     mRunStandardTest( jsmixedarr->dType(idx++) == DataType::Boolean,
-		      "Boolean data type is mixed array - true" );
+		      "Boolean data type is mixed array - true" )
     mRunStandardTest( jsmixedarr->dType(idx++) == DataType::Boolean,
-		      "Boolean data type is mixed array - false" );
+		      "Boolean data type is mixed array - false" )
     mRunStandardTest( jsmixedarr->dType(idx++) == DataType::Number,
-		      "Boolean data type is mixed array - double" );
-    mRunStandardTest( jsmixedarr->dType(idx++) == DataType::Number,
-		      "Boolean data type is mixed array - integer" );
+		      "Boolean data type is mixed array - double" )
+    mRunStandardTest( jsmixedarr->dType(idx++) == DataType::INumber,
+		      "Boolean data type is mixed array - integer" )
     mRunStandardTest( jsmixedarr->dType(idx++) == DataType::String,
-		      "Boolean data type is mixed array - string" );
+		      "Boolean data type is mixed array - string" )
 
     return true;
 }
@@ -581,10 +632,12 @@ int mTestMainFnName( int argc, char** argv )
 {
     mInitTestProg();
 
-    if ( !testParseJSON()
-      || !testUseJSON(false)
+    if ( !testParseJSON(false)
+      || !testUseJSON(false,false)
+      || !testParseJSON(true)
+      || !testUseJSON(false,true)
       || !testCreateJSON()
-      || !testUseJSON(true)
+      || !testUseJSON(true,false)
       || !testDumpJSON()
       || !testInterval()
       || !testArray1D()

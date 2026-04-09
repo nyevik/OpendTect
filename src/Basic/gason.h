@@ -43,6 +43,7 @@ namespace Gason		// --OD added
 	JSON_OBJECT,
 	JSON_TRUE,
 	JSON_FALSE,
+	JSON_INUMBER,
 	JSON_MIXED,
 	JSON_NULL = 0xF
     };
@@ -54,38 +55,52 @@ namespace Gason		// --OD added
 #define JSON_VALUE_TAG_MASK 0xF
 #define JSON_VALUE_TAG_SHIFT 47
 
-    union JsonValue {
-	uint64_t ival;
-	double fval;
+    struct JsonValue {
+	JsonTag tag;
+	union {
+	    uint64_t uval;
+	    int64_t ival;
+	    double fval;
+	    void *pval;
+	};
 
 	JsonValue(double x)
-	    : fval(x) {
+	    : tag(JSON_NUMBER)
+	    , fval(x) {
 	}
-	JsonValue(JsonTag tag = JSON_NULL, void *payload = nullptr) {
-	    assert( (uintptr_t)payload <= JSON_VALUE_PAYLOAD_MASK );
-	    ival = JSON_VALUE_NAN_MASK | ((uint64_t)tag << JSON_VALUE_TAG_SHIFT) | (uintptr_t)payload;
+	JsonValue(int64_t x)
+	    : tag(JSON_INUMBER)
+	    , ival(x) {
+	}
+	JsonValue(JsonTag atag = JSON_NULL, void *payload = nullptr)
+	    : tag(atag)
+	    , pval(payload) {
 	}
 	bool isDouble() const {
-	    return (int64_t)ival <= (int64_t)JSON_VALUE_NAN_MASK;
+	    return tag == JSON_NUMBER;
 	}
 	JsonTag getTag() const {
-	    return isDouble() ? JSON_NUMBER : JsonTag( (ival >> JSON_VALUE_TAG_SHIFT) & JSON_VALUE_TAG_MASK );
+	    return tag;
 	}
 	uint64_t getPayload() const {
-	    assert(!isDouble());
-	    return ival & JSON_VALUE_PAYLOAD_MASK;
+	    assert(tag != JSON_NUMBER && tag != JSON_INUMBER);
+	    return (uint64_t)(uintptr_t)pval;
 	}
 	double toNumber() const {
-	    assert(getTag() == JSON_NUMBER);
-	    return fval;
+	    assert(tag == JSON_NUMBER || tag == JSON_INUMBER);
+	    return tag == JSON_NUMBER ? fval : (double)ival;
+	}
+	int64_t toInt64() const {
+	    assert(tag == JSON_NUMBER || tag == JSON_INUMBER);
+	    return tag == JSON_INUMBER ? ival : (int64_t)fval;
 	}
 	char *toString() const {
 	    assert( getTag() == JSON_STRING );
-	    return (char *)getPayload();
+	    return (char *)pval;
 	}
 	JsonNode *toNode() const {
 	    assert(getTag() == JSON_ARRAY || getTag() == JSON_OBJECT);
-	    return (JsonNode *)getPayload();
+	    return (JsonNode *)pval;
 	}
     };
 
@@ -165,6 +180,7 @@ namespace Gason		// --OD added
 	void deallocate();
     };
 
-    int jsonParse(char *str, char **endptr, JsonValue *value, JsonAllocator &allocator);
+    int jsonParse( char *str, char **endptr, JsonValue *value,
+		   JsonAllocator &allocator );
 
 }   // --OD added

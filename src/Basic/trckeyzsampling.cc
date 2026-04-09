@@ -606,14 +606,14 @@ void TrcKeyZSampling::removeInfo( IOPar& par )
 void TrcKeyZSampling::fillJSON( OD::JSON::Object& obj ) const
 {
     hsamp_.fillJSON( obj );
-    obj.set( sJSONKey::ZRange(), zsamp_ );
+    obj.set( sJSONKey::ZRange().str(), zsamp_ );
 }
 
 
 bool TrcKeyZSampling::useJSON( const OD::JSON::Object& obj )
 {
     hsamp_.useJSON( obj );
-    obj.get( sJSONKey::ZRange(), zsamp_ );
+    obj.get( sJSONKey::ZRange().str(), zsamp_ );
     return true;
 }
 

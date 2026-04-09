@@ -672,17 +672,17 @@ void TrcKeySampling::fillJSON( OD::JSON::Object& obj ) const
 	OD::JSON::Object localobj;
 	const StepInterval<Index_Type> trcrng(
 	    start_.trcNr(), stop_.trcNr(), step_.trcNr() );
-	obj.set( sJSONKey::TrcRange(), trcrng );
-	obj.set( sJSONKey::GeomID(), start_.lineNr() );
+	obj.set( sJSONKey::TrcRange().str(), trcrng );
+	obj.set( sJSONKey::GeomID().str(), start_.lineNr() );
     }
     else
     {
 	const StepInterval<Index_Type> inlrng( start_.lineNr(), stop_.lineNr(),
-	    step_.lineNr() );
-	obj.set( sJSONKey::InlRange(), inlrng );
+					       step_.lineNr() );
+	obj.set( sJSONKey::InlRange().str(), inlrng );
 	const StepInterval<Index_Type> crlrng( start_.trcNr(), stop_.trcNr(),
-	    step_.trcNr() );
-	obj.set( sJSONKey::CrlRange(), crlrng );
+					       step_.trcNr() );
+	obj.set( sJSONKey::CrlRange().str(), crlrng );
     }
 
     obj.set( sJSONKey::SurveyID(), survid_ );
@@ -694,7 +694,7 @@ bool TrcKeySampling::useJSON( const OD::JSON::Object& obj )
     StepInterval<Index_Type> rng;
     if ( is2D() )
     {
-	obj.get( sJSONKey::TrcRange(), rng );
+	obj.get( sJSONKey::TrcRange().str(), rng );
 	start_.trcNr() = rng.start_;
 	stop_.trcNr() = rng.stop_;
 	step_.trcNr() = rng.step_;
@@ -703,12 +703,12 @@ bool TrcKeySampling::useJSON( const OD::JSON::Object& obj )
     }
     else
     {
-	obj.get( sJSONKey::InlRange(), rng );
+	obj.get( sJSONKey::InlRange().str(), rng );
 	start_.lineNr() = rng.start_;
 	stop_.lineNr() = rng.stop_;
 	step_.lineNr() = rng.step_;
 
-	obj.get( sJSONKey::CrlRange(), rng );
+	obj.get( sJSONKey::CrlRange().str(), rng );
 	start_.trcNr() = rng.start_;
 	stop_.trcNr() = rng.stop_;
 	step_.trcNr() = rng.step_;

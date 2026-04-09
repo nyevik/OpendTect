@@ -40,7 +40,9 @@ public:
     union Contents
     {
 	Contents() { val_ = 0; }
+
 	NumberType  val_;
+	INumberType ival_;
 	bool	    bool_;
 	char*	    str_;
 	ValueSet*   vset_;
@@ -56,6 +58,8 @@ public:
     bool		boolVal() const	{ return cont_.bool_; }
     NumberType&		val()		{ return cont_.val_; }
     NumberType		val() const	{ return cont_.val_; }
+    INumberType&	ival()		{ return cont_.ival_; }
+    INumberType		ival() const	{ return cont_.ival_; }
     char*		str()		{ return cont_.str_; }
     const char*		str() const	{ return cont_.str_; }
 
@@ -78,6 +82,7 @@ Value* clone( ValueSet* parent ) const
 	{
 	    case Boolean:	newval->setValue( boolVal() );	break;
 	    case Number:	newval->setValue( val() );	break;
+	    case INumber:	newval->setValue( ival() );	break;
 	    case String:	newval->setValue( str() );	break;
 	    case Mixed:		break;
 	}
@@ -89,11 +94,11 @@ Value* clone( ValueSet* parent ) const
     Value( typ v ) { setValue( (cast)(v) ); }
 
 mDefSimpleConstr( bool, bool )
-mDefSimpleConstr( od_int16, NumberType )
-mDefSimpleConstr( od_uint16,NumberType )
-mDefSimpleConstr( od_int32, NumberType )
-mDefSimpleConstr( od_uint32, NumberType )
-mDefSimpleConstr( od_int64, NumberType )
+mDefSimpleConstr( od_int16, INumberType )
+mDefSimpleConstr( od_uint16, INumberType )
+mDefSimpleConstr( od_int32, INumberType )
+mDefSimpleConstr( od_uint32, INumberType )
+mDefSimpleConstr( od_int64, INumberType )
 mDefSimpleConstr( float, NumberType )
 mDefSimpleConstr( double, NumberType )
 mDefSimpleConstr( const char*, const char* )
@@ -126,6 +131,13 @@ void setValue( NumberType v )
     cleanUp();
     type_ = (int)Number;
     cont_.val_ = v;
+}
+
+void setValue( INumberType v )
+{
+    cleanUp();
+    type_ = (int)INumber;
+    cont_.ival_ = v;
 }
 
 void setValue( const char* cstr )
@@ -212,6 +224,7 @@ OD::JSON::ValArr::ValArr( DataType typ )
     {
 	case Boolean:	set_ = new BSet;	break;
 	case Number:	set_ = new NSet;	break;
+	case INumber:	set_ = new INSet;	break;
 	case String:	set_ = new SSet;	break;
 	case Mixed:	break;
 	default:	{ pErrMsg("Unknown type"); type_ = String; }
@@ -226,6 +239,7 @@ OD::JSON::ValArr::ValArr( const ValArr& oth )
     {
 	case Boolean:	bools() = oth.bools();		break;
 	case Number:	vals() = oth.vals();		break;
+	case INumber:	ivals() = oth.ivals();		break;
 	case String:	strings() = oth.strings();	break;
 	case Mixed:	break;
     }
@@ -272,6 +286,11 @@ void OD::JSON::ValArr::dumpJSon( StringBuilder& sb ) const
 		const NumberType val = vals()[idx];
 		sb.add( val );
 	    } break;
+	    case INumber:
+	    {
+		const INumberType val = ivals()[idx];
+		sb.add( val );
+	    } break;
 	    case String:
 	    {
 		const BufferString toadd( "\"", strings().get(idx), "\"" );
@@ -310,6 +329,26 @@ FilePath OD::JSON::ValArr::getFilePath( idx_type idx ) const
 	ret.set( strings().get(idx) );
 
     return ret;
+}
+
+
+void OD::JSON::ValArr::ensureNumber()
+{
+    if ( dataType() == Number || isEmpty() )
+	return; //Nothing to do
+
+    if ( dataType() != INumber )
+	return; //Not supported
+
+    const int sz = size();
+    const INSet* oldset = ivals().clone();
+    delete set_;
+    set_ = new NSet( sz );
+    for ( int idx=0; idx<sz; idx++ )
+	vals()[idx] = (*oldset)[idx];
+
+    delete oldset;
+    type_ = Number;
 }
 
 
@@ -467,6 +506,7 @@ BufferString OD::JSON::ValueSet::getStringValue( idx_type idx ) const
     {
 	case Boolean:	ret.set( val->boolVal() ? "true" : "false" );  break;
 	case Number:	ret.set( val->val() );  break;
+	case INumber:	ret.set( val->ival() );  break;
 	case String:	ret.set( val->str() ); break;
 	default:	{ pErrMsg("Huh"); }
     }
@@ -508,7 +548,12 @@ od_int64 OD::JSON::ValueSet::getIntValue( idx_type idx ) const
     switch ( DataType(val->type_) )
     {
 	case Boolean:	ret = val->boolVal() ? 0 : 1;  break;
-	case Number:	ret = mNINT64( val->val() );  break;
+	case Number:
+	{
+	    const double dval = val->val();
+	    ret = mIsUdf(dval) ? mUdf(od_int64) : mNINT64(dval); break;
+	}
+	case INumber:	ret = val->ival();  break;
 	case String:	ret = toInt64( val->str() );  break;
 	default:	{ pErrMsg("Huh"); }
     }
@@ -529,8 +574,13 @@ double OD::JSON::ValueSet::getDoubleValue( idx_type idx ) const
 
     switch ( DataType(val->type_) )
     {
-	case Boolean:	ret = val->boolVal() ? 0 : 1;  break;
+	case Boolean:	ret = val->boolVal() ? 0. : 1.;  break;
 	case Number:	ret = val->val();  break;
+	case INumber:
+	{
+	    const od_int64 ival = val->ival();
+	    ret = mIsUdf(ival) ? mUdf(double) : (double) ival; break;
+	}
 	case String:	ret = toDouble( val->str() );  break;
 	default:	{ pErrMsg("Huh"); }
     }
@@ -597,12 +647,16 @@ static JSON::ValueSet* getSubVS( JSON::ValueSet* parent,
 	return new JSON::Array( nextisobj, parent );
 
     JSON::DataType dt = JSON::Boolean;
-    if ( nexttag == Gason::JSON_NUMBER || nexttag == Gason::JSON_NULL )
+    if ( nexttag == Gason::JSON_NUMBER )
 	dt = JSON::Number;
+    else if ( nexttag == Gason::JSON_INUMBER )
+	dt = JSON::INumber;
     else if ( nexttag == Gason::JSON_STRING )
 	dt = JSON::String;
     else if ( nexttag == Gason::JSON_MIXED )
 	dt = JSON::Mixed;
+    else if ( nexttag == Gason::JSON_NULL )
+	dt = JSON::Number;
 
     return new JSON::Array( dt, parent );
 }
@@ -624,10 +678,22 @@ void OD::JSON::ValueSet::use( const GasonNode& gasonnode, bool allowmixed )
 	    const double val = gasonval.toNumber();
 	    if ( isobj )
 		values_ += new KeyedValue( ky, val );
-	    else if ( asArray().isData() && !asArray().isMixed() )
-		asArray().valArr().vals() += val;
 	    else
-		values_ += new Value( val );
+	    {
+		if ( !allowmixed )
+		    asArray().ensureNumber();
+
+		asArray().add( val );
+	    }
+	} break;
+
+	case Gason::JSON_INUMBER:
+	{
+	    const od_int64 val = gasonval.toInt64();
+	    if ( isobj )
+		values_ += new KeyedValue( ky, val );
+	    else
+		asArray().add( val );
 	} break;
 
 	case Gason::JSON_STRING:
@@ -635,10 +701,8 @@ void OD::JSON::ValueSet::use( const GasonNode& gasonnode, bool allowmixed )
 	    const char* val = gasonval.toString();
 	    if ( isobj )
 		values_ += new KeyedValue( gasonnode.key, val );
-	    else if ( asArray().isData() && !asArray().isMixed() )
-		asArray().valArr().strings().add( val );
 	    else
-		values_ += new Value( val );
+		asArray().add( val );
 	} break;
 
 	case Gason::JSON_TRUE:
@@ -647,10 +711,8 @@ void OD::JSON::ValueSet::use( const GasonNode& gasonnode, bool allowmixed )
 	    const bool val = tag == Gason::JSON_TRUE;
 	    if ( isobj )
 		values_ += new KeyedValue( gasonnode.key, val );
-	    else if ( asArray().isData() && !asArray().isMixed() )
-		asArray().valArr().bools() += val;
 	    else
-		values_ += new Value( val );
+		asArray().add( val );
 	} break;
 
 	case Gason::JSON_ARRAY:
@@ -796,7 +858,7 @@ void OD::JSON::ValueSet::dumpJSon( BufferString& bs, bool pretty ) const
     bs = sb.result();
     if ( pretty )
     {
-	QJsonDocument qjsondoc = QJsonDocument::fromJson( bs.str() );
+	QJsonDocument qjsondoc = QJsonDocument::fromJson( bs.buf() );
 	bs = qjsondoc.toJson( QJsonDocument::Indented ).constData();
     }
 }
@@ -835,6 +897,9 @@ void OD::JSON::ValueSet::dumpJSon( StringBuilder& sb ) const
 		    break;
 		case Number:
 		    sb.add( val.val() );
+		    break;
+		case INumber:
+		    sb.add( val.ival() );
 		    break;
 		case String:
 		    sb.add( "\"" ).add( val.str() ).add( "\"" );
@@ -1019,6 +1084,52 @@ OD::JSON::DataType OD::JSON::Array::dataType() const
 }
 
 
+Coord OD::JSON::Array::getCoord() const
+{
+    if ( size() < 2 || (!isData() && !isMixed()) )
+	return Coord::udf();
+
+    Coord crd( getDoubleValue(0), getDoubleValue(1) );
+    return crd;
+}
+
+
+Coord3 OD::JSON::Array::getCoord3() const
+{
+    if ( size() < 3 || (!isData() && !isMixed()) )
+	return Coord3::udf();
+
+    Coord3 crd( getDoubleValue(0), getDoubleValue(1), getDoubleValue(2) );
+    return crd;
+}
+
+
+bool OD::JSON::Array::getStrings( BufferStringSet& bss ) const
+{
+    if ( valType() != Data )
+	return false;
+
+    bss = valArr().strings();
+    return true;
+}
+
+
+bool OD::JSON::Array::get( BoolTypeSet& arr ) const
+{
+    if ( !isData() && !isMixed() )
+	return false;
+
+    const int sz = size();
+    if ( !arr.setSize(sz) )
+	return false;
+
+    for ( int idx=0; idx<sz; idx++ )
+	arr[idx] = getBoolValue( idx );
+
+    return true;
+}
+
+
 void OD::JSON::Array::addVS( ValueSet* vset )
 {
     if ( isData() )
@@ -1030,6 +1141,13 @@ void OD::JSON::Array::addVS( ValueSet* vset )
 	vset->setParent( this );
 	values_ += new Value( vset );
     }
+}
+
+
+void OD::JSON::Array::ensureNumber()
+{
+    if ( isData() && !isMixed() )
+	valArr().ensureNumber();
 }
 
 
@@ -1062,8 +1180,23 @@ od_int64 OD::JSON::Array::getIntValue( idx_type idx ) const
     if ( !isData() || isMixed())
 	return ValueSet::getIntValue( idx );
 
-    return valArr().validIdx( idx ) ? sCast(od_int64,valArr().vals()[idx])
-				    : mUdf(od_int64);
+    if ( !valArr().validIdx(idx) )
+	return mUdf(od_int64);
+
+    od_int64 ret = mUdf(od_int64);
+    switch ( DataType(valArr().dataType()) )
+    {
+	case Boolean:	ret = valArr().bools()[idx] ? 0 : 1;  break;
+	case Number:
+	{
+	    const double dval = valArr().vals()[idx];
+	    ret = mIsUdf(dval) ? mUdf(od_int64) : mNINT64(dval); break;
+	}
+	case INumber:	ret = valArr().ivals()[idx];  break;
+	case String:	ret = toInt64( valArr().strings()[idx]->buf() );  break;
+	default:	{ pErrMsg("Huh"); }
+    }
+    return ret;
 }
 
 
@@ -1072,7 +1205,24 @@ double OD::JSON::Array::getDoubleValue( idx_type idx ) const
     if ( !isData() || isMixed() )
 	return ValueSet::getDoubleValue( idx );
 
-    return valArr().validIdx( idx ) ? valArr().vals()[idx] : mUdf(double);
+    if ( !valArr().validIdx(idx) )
+	return mUdf(double);
+
+    double ret = mUdf(double);
+    switch ( DataType(valArr().dataType()) )
+    {
+	case Boolean:	ret = valArr().bools()[idx] ? 0. : 1.;	break;
+	case Number:	ret = valArr().vals()[idx];  break;
+	case INumber:
+	{
+	    const od_int64 ival = valArr().ivals()[idx];
+	    ret = mIsUdf(ival) ? mUdf(double) : (double) ival; break;
+	}
+	case String:	ret = toDouble( valArr().strings()[idx]->buf());  break;
+	default:	{ pErrMsg("Huh"); }
+    }
+
+    return ret;
 }
 
 
@@ -1090,6 +1240,8 @@ BufferString OD::JSON::Array::getStringValue( idx_type idx ) const
 	ret.set( toString(valArr().bools().get(idx)) );
     else if ( datatype == Number )
 	ret.set( toString(valArr().vals().get(idx)) );
+    else if ( datatype == INumber )
+	ret.set( toString(valArr().ivals().get(idx)) );
     else
 	ret.set( valArr().strings().get(idx) );
 
@@ -1104,8 +1256,6 @@ FilePath OD::JSON::Array::getFilePath( idx_type idx ) const
 }
 
 
-static const char* addarrnonvalstr = "add value to non-value Array";
-
 #define mDefArrayAddVal(inptyp,fn,valtyp) \
 OD::JSON::Array& OD::JSON::Array::add( inptyp val ) \
 { \
@@ -1114,16 +1264,16 @@ OD::JSON::Array& OD::JSON::Array::add( inptyp val ) \
     else if ( isData() ) \
 	valarr_->fn().add( (valtyp)val ); \
     else \
-	{ pErrMsg(addarrnonvalstr); } \
+	values_ += new Value( val ); \
     return *this; \
 }
 
 mDefArrayAddVal( bool, bools, bool )
-mDefArrayAddVal( od_int16, vals, NumberType )
-mDefArrayAddVal( od_uint16, vals, NumberType )
-mDefArrayAddVal( od_int32, vals, NumberType )
-mDefArrayAddVal( od_uint32, vals, NumberType )
-mDefArrayAddVal( od_int64, vals, NumberType )
+mDefArrayAddVal( od_int16, ivals, INumberType )
+mDefArrayAddVal( od_uint16, ivals, INumberType )
+mDefArrayAddVal( od_int32, ivals, INumberType )
+mDefArrayAddVal( od_uint32, ivals, INumberType )
+mDefArrayAddVal( od_int64, ivals, INumberType )
 mDefArrayAddVal( float, vals, NumberType )
 mDefArrayAddVal( double, vals, NumberType )
 mDefArrayAddVal( const char*, strings, const char* )
@@ -1143,12 +1293,12 @@ OD::JSON::Array& OD::JSON::Array::add( const uiString& val )
 {
     BufferString bs;
     val.fillUTF8String( bs );
-    return add( bs.str() );
+    return add( bs.buf() );
 }
 
 OD::JSON::Array& OD::JSON::Array::add( const OD::String& odstr )
 {
-    return add( odstr.str() );
+    return add( odstr.buf() );
 }
 
 
@@ -1159,29 +1309,7 @@ OD::JSON::Array& OD::JSON::Array::add( const FilePath& fp )
 }
 
 
-template<class T>
-OD::JSON::Array& OD::JSON::Array::setVals( const TypeSet<T>& vals )
-{
-    setEmpty();
-    valtype_ = Data;
-    delete valarr_; valarr_ = new ValArr( Number );
-    ValueSet::setEmpty();
-    copy( valarr_->vals(), vals );
-    return *this;
-}
 
-
-template<class T>
-OD::JSON::Array& OD::JSON::Array::setVals( const T* vals, size_type sz )
-{
-    setEmpty();
-    valtype_ = Data;
-    delete valarr_; valarr_ = new ValArr( Number );
-    ValueSet::setEmpty();
-    valarr_->vals().setSize( sz );
-    OD::memCopy( valarr_->vals().arr(), vals, sz*sizeof(T) );
-    return *this;
-}
 
 
 #define mDefArraySetVals( typ ) \
@@ -1218,7 +1346,7 @@ OD::JSON::Array& OD::JSON::Array::set( const uiString& val )
 
 OD::JSON::Array& OD::JSON::Array::set( const OD::String& val )
 {
-    return set( val.str() );
+    return set( val.buf() );
 }
 
 OD::JSON::Array& OD::JSON::Array::set( const FilePath& fp )
@@ -1227,9 +1355,16 @@ OD::JSON::Array& OD::JSON::Array::set( const FilePath& fp )
     return set( BufferStringSet(val.buf()) );
 }
 
+
 OD::JSON::Array& OD::JSON::Array::set( bool val )
 {
-    return set( BoolTypeSet(1,val) );
+    return setVals( &val, 1 );
+}
+
+
+OD::JSON::Array& OD::JSON::Array::set( const bool* vals, size_type sz )
+{
+    return setVals( vals, sz );
 }
 
 
@@ -1240,19 +1375,6 @@ OD::JSON::Array& OD::JSON::Array::set( const BoolTypeSet& vals )
     delete valarr_; valarr_ = new ValArr( Boolean );
     ValueSet::setEmpty();
     valarr_->bools() = vals;
-    return *this;
-}
-
-
-OD::JSON::Array& OD::JSON::Array::set( const bool* vals, size_type sz )
-{
-    setEmpty();
-    valtype_ = Data;
-    delete valarr_; valarr_ = new ValArr( Boolean );
-    ValueSet::setEmpty();
-    for ( auto idx=0; idx<sz; idx++ )
-	valarr_->bools().add( vals[idx] );
-
     return *this;
 }
 
@@ -1493,11 +1615,14 @@ MultiID OD::JSON::Object::getMultiID( const char* ky ) const
 bool OD::JSON::Object::getStrings( const char* ky, BufferStringSet& bss ) const
 {
     const Array* stringsarr = getArray( ky );
-    if ( !stringsarr || stringsarr->valType() != Data )
-	return false;
+    return stringsarr ? stringsarr->getStrings( bss ) : false;
+}
 
-    bss = stringsarr->valArr().strings();
-    return !bss.isEmpty();
+
+bool OD::JSON::Object::get( const char* ky, BoolTypeSet& arr ) const
+{
+    const Array* boolarr = getArray( ky );
+    return boolarr ? boolarr->get( arr ) : false;
 }
 
 
@@ -1538,16 +1663,6 @@ OD::JSON::Object* OD::JSON::Object::set( const char* ky, Object* obj )
 {
     setVS( ky, obj );
     return obj;
-}
-
-
-template <class T>
-void OD::JSON::Object::setVal( const char* ky, T t )
-{
-    if ( !ky || !*ky )
-	{ pErrMsg(errnoemptykey); return; }
-
-    set( new KeyedValue(ky,t) );
 }
 
 

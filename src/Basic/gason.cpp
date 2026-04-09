@@ -148,6 +148,46 @@ namespace Gason		// --OD added
 	return ch == '-' ? -result : result;
     }
 
+    static int64_t string2int64(char *s, char **endptr) {
+	bool negative = false;
+	if (*s == '-') {
+	    negative = true;
+	    ++s;
+	}
+	else if (*s == '+') {
+	    ++s;
+	}
+
+	uint64_t result = 0;
+	const uint64_t limit = negative ? (uint64_t)INT64_MAX + 1ULL : (uint64_t)INT64_MAX;
+
+	while (isdigit( *s )) {
+	    const uint64_t digit = (uint64_t)(*s++ - '0');
+	    if (result > (limit - digit) / 10) {
+		result = limit;
+		while (isdigit( *s ))
+		    ++s;
+		break;
+	    }
+	    result = (result * 10) + digit;
+	}
+
+	*endptr = s;
+	if (negative)
+	    return result == limit ? INT64_MIN : -(int64_t)result;
+	return (int64_t)result;
+    }
+
+    static bool isFloatingPointNumber(const char *s) {
+	if (*s == '-' || *s == '+')
+	    ++s;
+
+	while (isdigit( *s ))
+	    ++s;
+
+	return *s == '.' || *s == 'e' || *s == 'E';
+    }
+
     static inline JsonNode *insertAfter(JsonNode *tail, JsonNode *node) {
 	if (!tail)
 	    return node->next = node;
@@ -196,13 +236,18 @@ namespace Gason		// --OD added
 	    case '6':
 	    case '7':
 	    case '8':
-	    case '9':
-		o = JsonValue(string2double(*endptr, &s));
+	    case '9': {
+		const bool isFloat = isFloatingPointNumber(*endptr);
+		if ( isFloat )
+		    o = JsonValue(string2double(*endptr, &s));
+		else
+		    o = JsonValue(string2int64(*endptr, &s));
 		if (!isdelim( *s )) {
 		    *endptr = s;
 		    return JSON_BAD_NUMBER;
 		}
 		break;
+	    }
 	    case '"':
 		o = JsonValue( JSON_STRING, s );
 		for (char *it = s; *s; ++it, ++s) {

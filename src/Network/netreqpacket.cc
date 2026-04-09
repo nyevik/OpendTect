@@ -385,18 +385,25 @@ PtrMan<Network::PacketInterpreter> Network::RequestPacket::getPayload(
     uiRetVal uirv;
     OD::JSON::Object hdr;
     Network::PacketInterpreter* interpreter = readJsonHeader( hdr, uirv );
-    if ( !interpreter || !hdr.isPresent("array-shape") )
+    if ( !interpreter || !hdr.isPresent("array-shape") ||
+	 !hdr.isPresent("content-encoding") )
 	return nullptr;
 
-    const auto shapes = hdr.getArray("array-shape");
-    const auto dtypes = hdr.getArray( "content-encoding" );
+    BufferStringSet dtypes;
+    const OD::JSON::Array* shapes = hdr.getArray( "array-shape" );
+    if ( !shapes || !hdr.getArray( "content-encoding" )->getStrings(dtypes) ||
+	 dtypes.size() != shapes->size() )
+	return nullptr;
+
     for ( int idx=0; idx<shapes->size(); idx++ )
     {
-	const TypeSet<double>& shape = shapes->array(idx).valArr().vals();
+	TypeSet<int> shape;
+	if ( !shapes->array(idx).get(shape) )
+	    return nullptr;
+
 	ArrayNDInfo* info = ArrayNDInfoImpl::create( shape.arr(), shape.size());
 	infos += info;
-	types += OD::PythonAccess::getDataType(
-					dtypes->valArr().strings().get(idx) );
+	types += OD::PythonAccess::getDataType( dtypes.get(idx).buf() );
     }
 
     return interpreter;

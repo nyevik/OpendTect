@@ -30,6 +30,11 @@ static void printGasonValue( od_ostream& strm, const Gason::JsonValue& gsonval )
 	    strm << gsonval.toNumber() << ",";
 	}
 	break;
+	case Gason::JSON_INUMBER:
+	{
+	    strm << gsonval.toInt64() << ",";
+	}
+	break;
 	case Gason::JSON_STRING:
 	{
 	    strm << '"' << gsonval.toString() << "\",";

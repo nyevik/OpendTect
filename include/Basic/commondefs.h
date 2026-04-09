@@ -174,6 +174,21 @@ inline T& getNonConst( const T& t )
     clss( const clss& ) = delete; \
     clss& operator=( const clss& ) = delete;
 
+//--- template functions (not necessary if full template class)
+// integral = all integer types, including bool and char (int8)
+
+#define mFloatIntegralTemplate(typ) \
+    template <class typ, \
+	      typename Enable = std::enable_if_t< \
+				std::is_floating_point<typ>::value || \
+				std::is_integral<typ>::value>>
+#define mFloatIntegralNoBoolTemplate(typ) \
+    template <class typ, \
+	      typename Enable = std::enable_if_t< \
+		    std::is_floating_point<typ>::value || \
+		    (std::is_integral<typ>::value && \
+		    !std::is_same<T,bool>::value) >>
+
 
 //--- Covering Windows problems, mainly DLL export/import stuff
 

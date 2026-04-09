@@ -8,18 +8,20 @@ ________________________________________________________________________
 
 -*/
 
+#include "arraynd.h"
 #include "filepath.h"
-#include "od_iosfwd.h"
 #include "typeset.h"
 #include "uistringset.h"
-#include "arraynd.h"
+
+#include <climits>
 
 class DBKeySet;
 class DBKey;
 class SeparString;
 class StringBuilder;
+class od_istream;
+class od_ostream;
 namespace Gason { struct JsonNode; }
-
 
 namespace OD
 {
@@ -36,10 +38,12 @@ class Value;
 
 enum DataType
 {
-    Boolean, Number, String, Mixed
+    Boolean, Number, INumber, String, Mixed
 };
 
+typedef bool BoolType;
 typedef double NumberType;
+typedef od_int64 INumberType;
 
 
 /*! holds 'flat' value sets of each of the DataType's */
@@ -52,6 +56,7 @@ public:
     typedef size_type			idx_type;
     typedef BoolTypeSet			BSet;
     typedef TypeSet<NumberType>		NSet;
+    typedef TypeSet<INumberType>	INSet;
     typedef BufferStringSet		SSet;
 
 			ValArr(DataType);
@@ -70,18 +75,23 @@ public:
     void		setFilePath(const FilePath&, idx_type idx);
     FilePath		getFilePath(idx_type idx) const;
 
+    void		dumpJSon(BufferString&) const;
+    void		dumpJSon(StringBuilder&) const;
+    BufferString	dumpJSon() const;
+
+private:
+    friend class Array; // Only for the Array class
+
     OD::Set&		odSet()			{ return *set_; }
     const OD::Set&	odSet() const		{ return *set_; }
     BSet&		bools()			{ return *((BSet*)set_); }
     const BSet&		bools() const		{ return *((BSet*)set_); }
     NSet&		vals()			{ return *((NSet*)set_); }
     const NSet&		vals() const		{ return *((NSet*)set_); }
+    INSet&		ivals()			{ return *((INSet*)set_); }
+    const INSet&	ivals() const		{ return *((INSet*)set_); }
     SSet&		strings()		{ return *((SSet*)set_); }
     const SSet&		strings() const		{ return *((SSet*)set_); }
-
-    void		dumpJSon(BufferString&) const;
-    void		dumpJSon(StringBuilder&) const;
-    BufferString	dumpJSon() const;
 
 protected:
 
@@ -91,6 +101,10 @@ protected:
 private:
 
 			ValArr()	 = delete;
+
+public:
+			// Only for the parser
+    void		ensureNumber();
 
 };
 
@@ -255,6 +269,13 @@ public:
     BufferString	getStringValue(idx_type) const override;
     FilePath		getFilePath(idx_type) const override;
 
+    Coord		getCoord() const;
+    Coord3		getCoord3() const;
+    bool		getStrings(BufferStringSet&) const;
+    mFloatIntegralNoBoolTemplate(T)
+    bool		get(TypeSet<T>&) const;
+    bool		get(BoolTypeSet&) const;
+
 			// only usable if valType() == Data
 #   define		mDeclJSONArraySetFn( typ ) \
     Array&		set(typ)
@@ -294,13 +315,17 @@ protected:
     ValueType		valtype_;
     ValArr*		valarr_		= nullptr;
 
-    template <class T>
+    mFloatIntegralNoBoolTemplate(T)
     Array&		setVals(const TypeSet<T>&);
-    template <class T>
+    mFloatIntegralTemplate(T)
     Array&		setVals(const T*,size_type);
     void		addVS(ValueSet*);
 
     friend class	ValueSet;
+
+private:
+    void		ensureNumber();
+			//<! only for the parser
 
 };
 
@@ -361,7 +386,6 @@ public:
     FilePath		getFilePath( idx_type idx ) const override
 			{ return ValueSet::getFilePath( idx ); }
 
-
     bool		getBoolValue(const char*) const;
     od_int64		getIntValue(const char*) const;
     double		getDoubleValue(const char*) const;
@@ -370,11 +394,14 @@ public:
     bool		getStrings(const char*,BufferStringSet&) const;
     bool		getGeomID(const char*,Pos::GeomID&) const;
     MultiID		getMultiID(const char*) const;
-    template <class T>
+    mFloatIntegralNoBoolTemplate(T)
     bool		get(const char*,Interval<T>&) const;
-    template <class T>
+    mFloatIntegralNoBoolTemplate(T)
+    bool		get(const char*,TypeSet<T>&) const;
+    bool		get(const char*,BoolTypeSet&) const;
+    mFloatIntegralTemplate(T)
     bool		get(const char*,Array1D<T>&) const;
-    template <class T>
+    mFloatIntegralTemplate(T)
     bool		get(const char*,Array2D<T>&) const;
 
     bool		getBoolValue( const OD::String& str ) const
@@ -406,11 +433,11 @@ public:
     void		set(const char* ky,const DBKey&);
     void		set(const char* ky,const MultiID&);
     void		set(const char* ky,const uiString&);
-    template <class T>
+    mFloatIntegralNoBoolTemplate(T)
     void		set(const char* ky,const Interval<T>&);
-    template <class T>
+    mFloatIntegralTemplate(T)
     void		set(const char* ky,const Array1D<T>&);
-    template <class T>
+    mFloatIntegralTemplate(T)
     void		set(const char* ky,const Array2D<T>&);
 
     void		remove(const char*);
@@ -444,93 +471,263 @@ inline const Object& ValueSet::asObject() const
 { return *static_cast<const Object*>( this ); }
 
 
-template <class T>
-inline bool OD::JSON::Object::get( const char* key, Interval<T>& intrvl ) const
+template <class T, typename Enable>
+Array& Array::setVals( const TypeSet<T>& vals )
 {
-    const auto* arr = getArray( key );
-    if ( !arr )
-	return false;
-    const TypeSet<NumberType> intrvals = arr->valArr().vals();
-
-    intrvl.start_ = intrvals[0];
-    intrvl.stop_ = intrvals[1];
-
-    if ( intrvl.hasStep() )
+    setEmpty();
+    valtype_ = Data;
+    delete valarr_;
+    if constexpr ( std::is_floating_point<T>::value )
     {
-	mDynamicCastGet(StepInterval<T>*,si,&intrvl)
-	    si->step_ = intrvals[2];
+	valarr_ = new ValArr( Number );
+	ValueSet::setEmpty();
+	copy( valarr_->vals(), vals );
     }
+    else if constexpr ( std::is_integral<T>::value )
+    {
+	valarr_ = new ValArr( INumber );
+	ValueSet::setEmpty();
+	copy( valarr_->ivals(), vals );
+    }
+
+    return *this;
+}
+
+
+template <class T, typename Enable>
+Array& Array::setVals( const T* vals, size_type sz )
+{
+    setEmpty();
+    valtype_ = Data;
+    delete valarr_;
+    if constexpr ( std::is_floating_point<T>::value )
+    {
+	valarr_ = new ValArr( Number );
+	valarr_->vals().setSize( sz );
+	ValueSet::setEmpty();
+	OD::memCopy( valarr_->vals().arr(), vals, sz*sizeof(T) );
+    }
+    else if constexpr (std::is_same_v<T, BoolType>)
+    {
+	valarr_ = new ValArr( Boolean );
+	valarr_->bools().setSize( sz );
+	ValueSet::setEmpty();
+	for ( auto idx=0; idx<sz; idx++ )
+	    valarr_->bools()[idx] = vals[idx];
+    }
+    else if constexpr ( std::is_integral<T>::value )
+    {
+	valarr_ = new ValArr( INumber );
+	valarr_->ivals().setSize( sz );
+	ValueSet::setEmpty();
+	OD::memCopy( valarr_->ivals().arr(), vals, sz*sizeof(T) );
+    }
+    else
+	valarr_ = nullptr;
+
+    return *this;
+}
+
+
+template <class T, typename Enable>
+bool Array::get( TypeSet<T>& arr ) const
+{
+    if ( !isData() && !isMixed() )
+	return false;
+
+    const int sz = size();
+    if ( !arr.setSize(sz) )
+	return false;
+
+    if constexpr ( std::is_floating_point<T>::value )
+    {
+	for ( int idx=0; idx<sz; idx++ )
+	{
+	    const double val = getDoubleValue( idx );
+	    arr[idx] = mIsUdf(val) ? mUdf(T) : mCast(T,val);
+	}
+    }
+    else if constexpr ( std::is_integral<T>::value )
+    {
+	for ( int idx=0; idx<sz; idx++ )
+	{
+	    const od_int64 val = getIntValue( idx );
+	    arr[idx] = mIsUdf(val) ? mUdf(T) : mCast(T,val);
+	}
+    }
+
     return true;
 }
 
 
-template <class T>
-inline void OD::JSON::Object::set( const char* key, const Interval<T>& intrvl )
+template <class T, typename Enable>
+bool Object::get( const char* key, TypeSet<T>& arr ) const
 {
-    auto* arr = new Array(DataType::Number);
-    TypeSet<NumberType> intrvals;
-    intrvals.add( intrvl.start_ ).add( intrvl.stop_ );
+    const auto* jsarr = getArray( key );
+    return jsarr ? jsarr->get( arr ) : false;
+}
 
-    if ( intrvl.hasStep() )
+
+template <class T, typename Enable>
+bool Object::get( const char* key, Interval<T>& intrvl ) const
+{
+    const auto* arr = getArray( key );
+    const int reqsz = intrvl.hasStep() ? 3 : 2;
+    if ( !arr || arr->size() < reqsz )
+	return false;
+
+    TypeSet<T> vals;
+    if ( !arr->get(vals) || vals.size() < reqsz )
+	return false;
+
+    intrvl.set( vals[0], vals[1] );
+    if ( reqsz > 2 )
+	sCast(StepInterval<T>&,intrvl).step_ = vals[2];
+
+    return true;
+}
+
+
+template <class T, typename Enable>
+void Object::set( const char* key, const Interval<T>& intrvl )
+{
+    Array* arr = nullptr;
+    if constexpr ( std::is_floating_point<T>::value )
     {
-	mDynamicCastGet(const StepInterval<T>*,si,&intrvl)
-	    intrvals.add( si->step_ );
+	arr = new Array( DataType::Number );
+	TypeSet<NumberType> intrvals;
+	intrvals.add( intrvl.start_ ).add( intrvl.stop_ );
+	if ( intrvl.hasStep() )
+	    intrvals.add( sCast(const StepInterval<T>&,intrvl).step_ );
+
+	arr->set( intrvals );
+    }
+    else if constexpr ( std::is_integral<T>::value )
+    {
+	arr = new Array( DataType::INumber );
+	TypeSet<INumberType> intrvals;
+	intrvals.add( intrvl.start_ ).add( intrvl.stop_ );
+	if ( intrvl.hasStep() )
+	    intrvals.add( sCast(const StepInterval<T>&,intrvl).step_ );
+
+	arr->set( intrvals );
     }
 
-    arr->set( intrvals );
     set( key, arr );
 }
 
 
-template <class T>
-inline bool OD::JSON::Object::get( const char* key, Array1D<T>& arr ) const
+template <class T, typename Enable>
+bool Object::get( const char* key, Array1D<T>& arr ) const
 {
     const auto* jsarr = getArray( key );
-    if ( !jsarr || !jsarr->isData() )
+    if ( !jsarr || (!jsarr->isData() && !jsarr->isMixed()) )
 	return false;
 
     const Array1DInfoImpl info( jsarr->size() );
     if ( arr.info() != info && !arr.setInfo(info) )
 	return false;
 
-    const TypeSet<NumberType>& vals = jsarr->valArr().vals();
-    for ( int idx=0; idx<vals.size(); idx++ )
-	arr.set( idx, vals[idx] );
+    const int sz = arr.size();
+    if constexpr ( std::is_floating_point<T>::value )
+    {
+	for ( int idx=0; idx<sz; idx++ )
+	{
+	    const double val = jsarr->getDoubleValue( idx );
+	    if ( mIsUdf(val) )
+		arr.set( idx, mUdf(T) );
+	    else
+		arr.set( idx, mCast(T,val) );
+	}
+    }
+    else if constexpr (std::is_same_v<T, BoolType>)
+    {
+	for ( int idx=0; idx<sz; idx++ )
+	    arr.set( idx, jsarr->getBoolValue(idx) );
+    }
+    else if constexpr ( std::is_integral<T>::value )
+    {
+	for ( int idx=0; idx<sz; idx++ )
+	{
+	    const od_int64 val = jsarr->getIntValue( idx );
+	    if ( mIsUdf(val) )
+		arr.set( idx, mUdf(T) );
+	    else
+		arr.set( idx, mCast(T,val) );
+	}
+    }
 
     return true;
 }
 
-template <class T>
-inline void OD::JSON::Object::set( const char* key, const Array1D<T>& arr )
-{
-    auto* jsarr = new Array( DataType::Number );
-    if ( arr.getData() && typeid(T)==typeid(NumberType) )
-	jsarr->set( arr.getData(), arr.size() );
-    else
-    {
-	TypeSet<NumberType> vals;
-	for ( int idx=0; idx<arr.size(); idx++ )
-	    vals.add( arr[idx] );
 
-	jsarr->set( vals );
+template <class T, typename Enable>
+void Object::set( const char* key, const Array1D<T>& arr )
+{
+    const od_int64 totsz = arr.size();
+    if ( totsz > INT_MAX )
+	return;
+
+    const int sz = mCast(int,totsz);
+    Array* jsarr = nullptr;
+    if constexpr ( std::is_floating_point<T>::value )
+    {
+	jsarr = new Array( DataType::Number );
+	if ( arr.getData() && typeid(T)==typeid(NumberType) )
+	    jsarr->set( arr.getData(), sz );
+	else
+	{
+	    TypeSet<NumberType> vals( sz );
+	    for ( int idx=0; idx<sz; idx++ )
+		vals[idx] = arr[idx];
+	    jsarr->set( vals );
+	}
+    }
+    else if constexpr (std::is_same_v<T, BoolType>)
+    {
+	jsarr = new Array( DataType::Boolean );
+	if ( arr.getData() && typeid(T)==typeid(BoolType) )
+	    jsarr->set( arr.getData(), sz );
+	else
+	{
+	    BoolTypeSet vals;
+	    vals.setSize( sz );
+	    for ( int idx=0; idx<sz; idx++ )
+		vals[idx] = arr[idx];
+	    jsarr->set( vals );
+	}
+    }
+    else if constexpr ( std::is_integral<T>::value )
+    {
+	jsarr = new Array( DataType::INumber );
+	if ( arr.getData() && typeid(T)==typeid(INumberType) )
+	    jsarr->set( arr.getData(), sz );
+	else
+	{
+	    TypeSet<INumberType> vals( sz );
+	    for ( int idx=0; idx<sz; idx++ )
+		vals[idx] = arr[idx];
+	    jsarr->set( vals );
+	}
     }
 
     set( key, jsarr );
 }
 
 
-template <class T>
-inline bool OD::JSON::Object::get( const char* key, Array2D<T>& arr ) const
+template <class T, typename Enable>
+bool Object::get( const char* key, Array2D<T>& arr ) const
 {
     const auto* jsarr = getArray( key );
-    if ( !jsarr )
+    if ( !jsarr || !jsarr->isArray() )
 	return false;
 
     const int nrows = jsarr->size();
     int ncols = 0;
     for ( int irow=0; irow<nrows; irow++ )
     {
-	if ( !jsarr->isArrayChild(irow) || !jsarr->array(irow).isData() )
+	if ( !jsarr->isArrayChild(irow) ||
+	     (!jsarr->array(irow).isData() && !jsarr->array(irow).isMixed()) )
 	    return false;
 
 	ncols = mMAX( ncols, jsarr->array(irow).size() );
@@ -542,36 +739,104 @@ inline bool OD::JSON::Object::get( const char* key, Array2D<T>& arr ) const
 
     for ( int irow=0; irow<nrows; irow++ )
     {
-	const TypeSet<NumberType>& vals = jsarr->array(irow).valArr().vals();
-	for ( int icol=0; icol<vals.size(); icol++ )
-	    arr.set( irow, icol, vals[icol] );
+	const Array& rowjsarr = jsarr->array( irow );
+	const int nrcols = rowjsarr.size();
+	if constexpr ( std::is_floating_point<T>::value )
+	{
+	    for ( int icol=0; icol<nrcols; icol++ )
+	    {
+		const double val = rowjsarr.getDoubleValue( icol );
+		if ( mIsUdf(val) )
+		    arr.set( irow, icol, mUdf(T) );
+		else
+		    arr.set( irow, icol, mCast(T,val) );
+	    }
+	}
+	else if constexpr (std::is_same_v<T, BoolType>)
+	{
+	    for ( int icol=0; icol<nrcols; icol++ )
+		arr.set( irow, icol, rowjsarr.getBoolValue(icol) );
+	}
+	else if constexpr ( std::is_integral<T>::value )
+	{
+	    for ( int icol=0; icol<nrcols; icol++ )
+	    {
+		const od_int64 val = rowjsarr.getIntValue( icol );
+		if ( mIsUdf(val) )
+		    arr.set( irow, icol, mUdf(T) );
+		else
+		    arr.set( irow, icol, mCast(T,val) );
+	    }
+	}
     }
 
     return true;
 }
 
-
-template <class T>
-inline void OD::JSON::Object::set( const char* key, const Array2D<T>& arr )
+template <class T, typename Enable>
+void Object::set( const char* key, const Array2D<T>& arr )
 {
     auto* jsarr = new Array( true );
-    for ( int irow=0; irow<arr.getSize(0); irow++ )
+    const int sz1 = arr.getSize(0);
+    const int sz2 = arr.getSize(1);
+    for ( int irow=0; irow<sz1; irow++ )
     {
-	auto* col = new Array( DataType::Number );
-	if ( arr.get2DData()[irow] && typeid(T)==typeid(NumberType) )
-	    col->set( arr.get2DData()[irow], arr.getSize(1) );
-	else
+	Array* col = nullptr;
+	if constexpr ( std::is_floating_point<T>::value )
 	{
-	    TypeSet<NumberType> vals;
-	    for ( int icol=0; icol<arr.getSize(1); icol++ )
-		vals.add( arr.get(irow, icol) );
-
-	    col->set( vals );
+	    col = new Array( DataType::Number );
+	    if ( arr.get2DData()[irow] && typeid(T)==typeid(NumberType) )
+		col->set( arr.get2DData()[irow], sz2 );
+	    else
+	    {
+		TypeSet<NumberType> vals( sz2 );
+		for ( int icol=0; icol<sz2; icol++ )
+		    vals[icol] = arr.get(irow, icol);
+		col->set( vals );
+	    }
 	}
+	else if constexpr (std::is_same_v<T, BoolType>)
+	{
+	    col = new Array( DataType::Boolean );
+	    if ( arr.get2DData()[irow] && typeid(T)==typeid(BoolType) )
+		col->set( arr.get2DData()[irow], sz2 );
+	    else
+	    {
+		BoolTypeSet vals;
+		vals.setSize( sz2 );
+		for ( int icol=0; icol<sz2; icol++ )
+		    vals[icol] = arr.get(irow, icol);
+		col->set( vals );
+	    }
+	}
+	else if constexpr ( std::is_integral<T>::value )
+	{
+	    col = new Array( DataType::INumber );
+	    if ( arr.get2DData()[irow] && typeid(T)==typeid(INumberType) )
+		col->set( arr.get2DData()[irow], sz2 );
+	    else
+	    {
+		TypeSet<INumberType> vals( sz2 );
+		for ( int icol=0; icol<sz2; icol++ )
+		    vals[icol] = arr.get(irow, icol);
+		col->set( vals );
+	    }
+	}
+
 	jsarr->add( col );
     }
 
     set( key, jsarr );
+}
+
+
+template <class T>
+void Object::setVal( const char* ky, T t )
+{
+    if ( !ky || !*ky )
+	{ pErrMsg("Empty key not allowed for Object's"); return; }
+
+    set( new KeyedValue(ky,t) );
 }
 
 } // namespace JSON
