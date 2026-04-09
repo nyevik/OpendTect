@@ -90,7 +90,9 @@ void Fault3D::apply( const Pos::Filter& pf )
 	if ( rowrg.isUdf() ) continue;
 
 	RowCol rc;
-        for ( rc.row()=rowrg.stop_; rc.row()>=rowrg.start_; rc.row()-=rowrg.step_ )
+	for ( rc.row()=rowrg.stop_;
+	      rc.row()>=rowrg.start_;
+	      rc.row()-=rowrg.step_ )
 	{
 	    const StepInterval<int> colrg = fssg->colRange( rc.row() );
 	    if ( colrg.isUdf() ) continue;
@@ -415,15 +417,30 @@ bool FaultAscIO::get( od_istream& strm, EM::Fault& flt, bool sortsticks,
     int curstickidx = -1;
     bool hasstickidx = false;
 
-    bool oninl = false; bool oncrl = false; bool ontms = false;
+    bool oninl = false; bool oncrl = false; bool onz = false;
 
     double firstz = mUdf(double);
     BinID firstbid;
 
     ObjectSet<Geometry::FaultStick> sticks;
     const bool isxy = isXY();
-    const UnitOfMeasure* tabledepthunit = getDepthUnit();
-    const UnitOfMeasure* emobjdepthunit = UnitOfMeasure::surveyDefDepthUnit();
+
+    const bool istime =
+		fd_.bodyinfos_[1]->propertyType() == Mnemonic::StdType::Time;
+    const bool isdepth =
+		fd_.bodyinfos_[1]->propertyType() == Mnemonic::StdType::Dist;
+    if ( !istime && !isdepth )
+	pErrMsg( "Unsupported zDomain unit: not Time or Distance." );
+
+    const bool fltzdomistime = flt.zDomain().isTime();
+    if ( istime && !fltzdomistime )
+	pErrMsg( "Incompatible zDomain: table is in Time but fault is not." );
+    else if ( isdepth && fltzdomistime )
+	pErrMsg( "Incompatible zDomain: table is in Depth but fault is not." );
+
+    auto* faultzunit = flt.zUnit();
+    const ZSampling zdomrg = flt.zDomain().getReasonableZSampling(false);
+
     while ( true )
     {
 	const int ret = getNextBodyVals( strm );
@@ -434,18 +451,17 @@ bool FaultAscIO::get( od_istream& strm, EM::Fault& flt, bool sortsticks,
 	    break;
 
 	if ( isxy )
-	    crd = getPos3D( 0, 1, 2 );
+	    crd = getPos3D( 0, 1, 2, mUdf(double), faultzunit );
 	else
 	{
 	    Coord xycrd = SI().transform( getBinID(0,1) );
             crd.setXY( xycrd.x_, xycrd.y_ );
-            crd.z_ = getDValue( 2 );
+	    crd.z_ = getDValue( 2, mUdf(double), faultzunit );
 	}
 
 	if ( !crd.isDefined() )
 	    continue;
 
-        convValue( crd.z_, tabledepthunit, emobjdepthunit );
 	const int stickidx = getIntValue( 3 );
 
 	BufferString lnm;
@@ -472,15 +488,15 @@ bool FaultAscIO::get( od_istream& strm, EM::Fault& flt, bool sortsticks,
 
 	    oninl = oninl && curbid.inl()==firstbid.inl();
 	    oncrl = oncrl && curbid.crl()==firstbid.crl();
-            ontms = ontms && fabs(crd.z_-firstz) < fabs(0.5*SI().zStep());
+	    onz = onz && fabs(crd.z_-firstz) < fabs(0.5*zdomrg.step_);
 
-	    if ( !oninl && !oncrl && !ontms )
+	    if ( !oninl && !oncrl && !onz )
 	    {
 		curstickidx++;
 		sticks += new Geometry::FaultStick( stickidx );
 
                 firstbid = curbid; firstz = crd.z_;
-		oninl = true; oncrl = true; ontms = true;
+		oninl = true; oncrl = true; onz = true;
 	    }
 	}
 

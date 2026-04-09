@@ -68,6 +68,10 @@ public:
 				{ return tr("Random Position Body"); }
 
     static const char*		sKeySubIDs()	{ return "Position IDs"; }
+
+    void			convertZValues(const UnitOfMeasure*, bool,
+					       bool parallel=true) override;
+
 protected:
 
     TypeSet<Coord3>		locations_;

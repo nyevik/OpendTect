@@ -15,8 +15,10 @@ ________________________________________________________________________
 #include "executor.h"
 #include "stratlevel.h"
 
+
 class IOObj;
 class StreamConn;
+class UnitOfMeasure;
 namespace ZDomain { class Info; }
 template <class T> class DataInterpreter;
 template <class T> class Array3D;

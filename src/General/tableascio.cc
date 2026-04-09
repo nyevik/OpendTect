@@ -1044,10 +1044,12 @@ Coord Table::AscIO::getPos( int xfld, int yfld, double udf, bool isll,
 }
 
 
-Coord3 Table::AscIO::getPos3D( int xfld, int yfld, int zfld, double udf,
-		bool isll, ConstRefMan<Coords::CoordSystem> outcrs ) const
+Coord3 Table::AscIO::getPos3D( int xfld, int yfld, int zfld,double udf,
+			       const UnitOfMeasure* outunit,bool isll,
+			       ConstRefMan<Coords::CoordSystem> outcrs ) const
 {
-    return Coord3( getPos(xfld,yfld,udf,isll,outcrs), getDValue(zfld) );
+    return Coord3( getPos(xfld,yfld,udf,isll,outcrs),
+		   getDValue(zfld,udf,outunit) );
 }
 
 

@@ -510,4 +510,11 @@ void MarchingCubesSurface::setSampling( const TrcKeyZSampling& tkzs )
     setZSampling( SamplingData<float>(tkzs.zsamp_.start_,tkzs.zsamp_.step_) );
 }
 
+
+void MarchingCubesSurface::convertZValues( const UnitOfMeasure* zunit,
+					   bool from, bool parallel )
+{
+    EMObject::convertZValues( zunit, from, parallel );
+}
+
 } // namespace EM

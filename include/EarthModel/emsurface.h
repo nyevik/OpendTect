@@ -57,6 +57,9 @@ public:
 
     virtual void		apply(const Pos::Filter&);
 
+    void			convertZValues(const UnitOfMeasure*, bool from,
+					       bool parallel=true) override;
+
 protected:
 
     friend class		SurfaceGeometry;

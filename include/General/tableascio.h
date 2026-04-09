@@ -96,6 +96,7 @@ protected:
 				//Return CRS converted Coord
     Coord3			getPos3D(int xfld,int yfld, int zfld,
 					 double udf=mUdf(double),
+					 const UnitOfMeasure* outunit = nullptr,
 					 bool isll=false,
 					 ConstRefMan<Coords::CoordSystem> crs=
 					 SI().getCoordSystem()) const;

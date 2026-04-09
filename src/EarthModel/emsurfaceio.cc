@@ -736,6 +736,7 @@ bool dgbSurfaceReader::doPrepare( od_ostream* )
 
     setGeometry();
     par_->getYN( sKeyDepthOnly(), readonlyz_ );
+
     return true;
 }
 
@@ -917,6 +918,8 @@ int dgbSurfaceReader::nextStep()
 
 bool dgbSurfaceReader::doFinish( bool success, od_ostream*  )
 {
+    surface_->convertZValues( surface_->surveyStorageUnit(), true );
+    surface_->resetChangedFlag();
     deleteAndNullPtr( conn_ );
     return success;
 }
@@ -1771,6 +1774,7 @@ int dgbSurfaceWriter::nextStep()
 	const int res = ExecutorGroup::nextStep();
 	if ( !res && objectmid_==surface_.multiID() )
 	    const_cast<Surface*>(&surface_)->resetChangedFlag();
+
 	if ( res == Finished() )
 	    finishWriting();
 
@@ -1978,6 +1982,16 @@ bool dgbSurfaceWriter::writeRow( od_ostream& strm )
     const int nrcols =
 	(writecolrange_ ? writecolrange_->nrSteps() : colrange.nrSteps()) + 1;
 
+    const auto* datasetzunit = surface_.surveyStorageUnit();
+    const auto* objzunit = surface_.zUnit();
+    PtrMan<IOObj> objioobj = IOM().get( objectmid_ );
+    if ( objioobj )
+    {
+	const auto* objzinfo = ZDomain::Info::getFrom( objioobj->pars() );
+	if ( objzinfo )
+	    objzunit = UnitOfMeasure::zUnit( *objzinfo );
+    }
+
     mDynamicCastGet(const Horizon*,hor,&surface_)
     for ( int colindex=0; colindex<nrcols; colindex++ )
     {
@@ -1986,6 +2000,8 @@ bool dgbSurfaceWriter::writeRow( od_ostream& strm )
 
 	const PosID posid(  surface_.id(), RowCol(row,col) );
 	Coord3 pos = surface_.getPos( posid );
+	convValue( pos.z_, datasetzunit, objzunit );
+
 	if ( hor && pos.isDefined() )
             pos.z_ += shift_;
 

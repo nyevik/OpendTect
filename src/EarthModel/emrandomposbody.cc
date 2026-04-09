@@ -430,4 +430,10 @@ void RandomPosBody::fillBodyPar( IOPar& par ) const
 }
 
 
+void RandomPosBody::convertZValues( const UnitOfMeasure* zunit, bool from,
+				    bool parallel )
+{
+    EMObject::convertZValues( zunit, from, parallel );
+}
+
 } // namespace EM

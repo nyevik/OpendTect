@@ -347,10 +347,11 @@ bool uiEMPartServer::importBulk2DHorizon()
 
 void uiEMPartServer::importReadyCB( CallBacker* cb )
 {
+    const bool noerror = true;
     MultiID mid = MultiID::udf();
     mDynamicCastGet(uiImportHorizon*,dlg,cb)
     if ( dlg && dlg->saveButtonChecked() )
-	mid = dlg->getSelID();
+	mid = dlg->getSelID( noerror );
 
     mDynamicCastGet(uiImpHorFromZMap*,zmapdlg,cb)
     if ( zmapdlg && zmapdlg->saveButtonChecked() )
@@ -358,7 +359,7 @@ void uiEMPartServer::importReadyCB( CallBacker* cb )
 
     mDynamicCastGet(uiImportFault*,fltdlg,cb)
     if ( fltdlg && fltdlg->saveButtonChecked() )
-	mid = fltdlg->getSelID();
+	mid = fltdlg->getSelID( noerror );
 
     mDynamicCastGet(uiCreateHorizon*,crdlg,cb)
     if ( crdlg && crdlg->saveButtonChecked() )

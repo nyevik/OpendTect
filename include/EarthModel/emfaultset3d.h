@@ -43,6 +43,8 @@ public:
     const TrcKeyZSampling&	getEnvelope() const { return tkzsenvelope_; }
     void			setEnvelope(const TrcKeyZSampling&);
 
+    void			convertZValues(const UnitOfMeasure*, bool,
+					       bool parallel=true) override;
 
 protected:
 

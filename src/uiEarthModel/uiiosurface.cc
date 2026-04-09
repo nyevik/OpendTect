@@ -68,7 +68,7 @@ uiIOSurface::uiIOSurface( uiParent* p, bool forread, const char* tp,
     if ( zinfo )
     {
 	const ZDomain::Info& siinfo = SI().zDomainInfo();
-	ctio_->ctxt_.requireZDomain( *zinfo, siinfo == *zinfo );
+	ctio_->ctxt_.requireZDef( zinfo->def_, siinfo == *zinfo );
     }
 
     if ( forread_ )

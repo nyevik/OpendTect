@@ -298,10 +298,16 @@ bool uiImportFault::handleLMKAscii()
 
 bool uiImportFault::handleAscii()
 {
+
     RefMan<EM::Fault> fault = createFault();
     if ( !fault )
 	mErrRet( uiStrings::phrCannotCreate(isfss_ ?
 	    uiStrings::sFaultStickSet() : uiStrings::sFault()) )
+
+    const ZDomain::Info& zinfo = zDomain();
+    PtrMan<IOObj> ioobj = IOM().get( fault->multiID() );
+    zinfo.fillPar( ioobj->pars() );
+    IOM().commitChanges( *ioobj );
 
     od_istream strm( infld_->fileName() );
     if ( !strm.isOK() )
@@ -309,31 +315,27 @@ bool uiImportFault::handleAscii()
 
     mDynamicCastGet(EM::Fault3D*,fault3d,fault.ptr())
 
-    uiString tp = fault3d ? uiStrings::sFault() : uiStrings::sFaultStickSet();
+    uiString tp = fault3d ? uiStrings::sFault(mPlural) :
+			    uiStrings::sFaultStickSet(mPlural);
 
     const bool res = getFromAscIO( strm, *fault );
     if ( !res )
 	mErrRet( uiStrings::phrImport(tp));
 
+    // Conversion before saving ensures Z values are in the correct unit
+    fault->convertZValues( fault->surveyDisplayUnit(), true );
+    // saving resets the changed_ flag resetChangedFlag
     PtrMan<Executor> exec = fault->saver();
     bool isexec = exec->execute();
     if ( !isexec )
 	mErrRet( uiStrings::phrCannotSave(tp) );
 
-    const ZDomain::Info& zinfo = zDomain();
-    PtrMan<IOObj> obj = IOM().get( fault->multiID() );
-    zinfo.fillPar( obj->pars() );
-    IOM().commitChanges( *obj );
     if ( saveButtonChecked() )
-    {
 	importReady.trigger();
-	fault.setNoDelete( true );
-    }
 
     uiString msg = tr("%1 successfully imported."
 		      "\n\nDo you want to import more %2?")
-		      .arg(tp).arg(fault3d ? uiStrings::sFault(mPlural) :
-					   uiStrings::sFaultStickSet(mPlural));
+		      .arg(tp).arg(tp);
     bool ret= uiMSG().askGoOn( msg, uiStrings::sYes(),
 				tr("No, close window") );
     return !ret;
@@ -405,9 +407,9 @@ bool uiImportFault::checkInpFlds()
 }
 
 
-MultiID uiImportFault::getSelID() const
+MultiID uiImportFault::getSelID( bool noerror ) const
 {
-    return getValidOutFld()->key(false);
+    return getValidOutFld()->key( noerror );
 }
 
 

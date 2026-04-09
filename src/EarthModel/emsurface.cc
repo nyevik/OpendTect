@@ -348,6 +348,13 @@ void Surface::fillPar( IOPar& par ) const
 }
 
 
+void Surface::convertZValues( const UnitOfMeasure* zunit, bool from,
+			      bool parallel )
+{
+    EMObject::convertZValues( zunit, from, parallel );
+}
+
+
 
 // HorizonGeometry
 HorizonGeometry::HorizonGeometry( Surface& surf )

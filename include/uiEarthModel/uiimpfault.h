@@ -29,7 +29,7 @@ mODTextTranslationClass(uiImportFault);
 public:
 			~uiImportFault();
 
-    MultiID		getSelID() const;
+    MultiID		getSelID(bool noerror=false) const;
 
     Notifier<uiImportFault> importReady;
 

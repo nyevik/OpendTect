@@ -438,9 +438,9 @@ void uiImportHorizon::fillUdfSel( CallBacker* )
 }
 
 
-MultiID uiImportHorizon::getSelID() const
+MultiID uiImportHorizon::getSelID( bool noerror ) const
 {
-    return outputfld_->key( true );
+    return outputfld_->key( noerror );
 }
 
 
@@ -783,9 +783,9 @@ uiImpHorFromZMap::~uiImpHorFromZMap()
 }
 
 
-MultiID uiImpHorFromZMap::getSelID() const
+MultiID uiImpHorFromZMap::getSelID( bool noerror) const
 {
-    const MultiID mid = outputfld_->key();
+    const MultiID mid = outputfld_->key( noerror );
     return mid;
 }
 

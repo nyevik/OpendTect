@@ -141,7 +141,10 @@ public:
     const ObjectID&		id() const		{ return id_; }
     virtual const char*		getTypeStr() const			= 0;
     virtual uiString		getUserTypeStr() const			= 0;
-    const MultiID&		multiID() const		{ return storageid_; }
+    virtual void		convertZValues(const UnitOfMeasure*,
+					       bool from, bool parallel=true);
+				// Does not change zdominfo_.
+	const MultiID&		multiID() const		{ return storageid_; }
     void			setMultiID(const MultiID&);
 
     virtual bool		isOK() const		{ return true; }
@@ -291,6 +294,14 @@ public:
     static int			sSeedNode();
     static int			sIntersectionNode();
 
+    const UnitOfMeasure*	surveyStorageUnit() const;
+    const UnitOfMeasure*	surveyDisplayUnit() const;
+
+    static const UnitOfMeasure* surveyDepthStorageUnit();
+    static const UnitOfMeasure* surveyDepthDisplayUnit();
+    static const UnitOfMeasure* surveyTimeStorageUnit();
+    static const UnitOfMeasure* surveyTimeDisplayUnit();
+
     virtual const IOObjContext& getIOObjContext() const = 0;
 
     Interval<float>		getZRange(bool compute_if_needed=false) const;
@@ -375,6 +386,11 @@ protected:
     bool			insideselremoval_   = false;
     bool			selremoving_	    = false;
     const ZDomain::Info*	zdominfo_;
+
+    static const UnitOfMeasure* depthstorageunit_;
+    static const UnitOfMeasure* depthdisplayunit_;
+    static const UnitOfMeasure* timestorageunit_;
+    static const UnitOfMeasure* timedisplayunit_;
 
     static const char*		nrposattrstr();
     static const char*		posattrprefixstr();

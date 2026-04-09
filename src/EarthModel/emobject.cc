@@ -35,6 +35,11 @@ int EMObject::sTerminationNode()	{ return PosAttrib::TerminationNode; }
 int EMObject::sSeedNode()		{ return PosAttrib::SeedNode; }
 int EMObject::sIntersectionNode()	{ return PosAttrib::IntersectionNode; }
 
+const UnitOfMeasure* EMObject::depthstorageunit_ = nullptr;
+const UnitOfMeasure* EMObject::depthdisplayunit_ = nullptr;
+const UnitOfMeasure* EMObject::timestorageunit_ = nullptr;
+const UnitOfMeasure* EMObject::timedisplayunit_ = nullptr;
+
 const char* EMObject::posattrprefixstr()	{ return "Pos Attrib "; }
 const char* EMObject::posattrsectionstr()	{ return " Section"; }
 const char* EMObject::posattrposidstr()		{ return " SubID"; }
@@ -192,6 +197,86 @@ EMObject& EMObject::setZDomain( const ZDomain::Info& zinfo )
 
     zdominfo_ = &zinfo;
     return *this;
+}
+
+
+const UnitOfMeasure* EMObject::surveyDepthStorageUnit()
+{
+    if ( !depthstorageunit_ )
+	depthstorageunit_ = UnitOfMeasure::surveyDefDepthStorageUnit();
+
+    return depthstorageunit_;
+}
+
+
+const UnitOfMeasure* EMObject::surveyDepthDisplayUnit()
+{
+    if ( !depthdisplayunit_ )
+	depthdisplayunit_ = UnitOfMeasure::surveyDefDepthUnit();
+
+    return depthdisplayunit_;
+}
+
+
+const UnitOfMeasure* EMObject::surveyTimeStorageUnit()
+{
+    if ( !timestorageunit_ )
+	timestorageunit_ = UnitOfMeasure::surveyDefTimeStorageUnit();
+
+    return timestorageunit_;
+}
+
+
+const UnitOfMeasure* EMObject::surveyTimeDisplayUnit()
+{
+    if ( !timedisplayunit_ )
+	timedisplayunit_ = UnitOfMeasure::surveyDefTimeUnit();
+
+    return timedisplayunit_;
+}
+
+
+const UnitOfMeasure* EMObject::surveyStorageUnit() const
+{
+    return zDomain().isTime() ? surveyTimeStorageUnit() :
+				surveyDepthStorageUnit();
+}
+
+
+const UnitOfMeasure* EMObject::surveyDisplayUnit() const
+{
+    return zDomain().isTime() ? surveyTimeDisplayUnit() :
+				surveyDepthDisplayUnit();
+}
+
+
+void EMObject::convertZValues( const UnitOfMeasure* zunit,
+			       bool from, bool parallel )
+{
+    const UnitOfMeasure* emobjzunit = zUnit();
+    if ( !emobjzunit || !zunit ||
+	 !emobjzunit->isCompatibleWith(*zunit) || emobjzunit==zunit )
+	return;
+
+    const auto* fromunit = from ? emobjzunit : zunit;
+    const auto* tounit = from ? zunit : emobjzunit;
+
+    PtrMan<EMObjectIterator> iterator = createIterator( nullptr );
+    if ( !iterator )
+	return;
+
+    EM::PosID pid = iterator->next();
+    while ( pid.isValid() )
+    {
+	Coord3 pos = getPos( pid );
+	if ( pos.isDefined() )
+	{
+	    convValue( pos.z_, fromunit, tounit );
+	    setPos( pid, pos, false );
+	}
+
+	pid = iterator->next();
+    }
 }
 
 

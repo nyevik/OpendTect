@@ -71,6 +71,9 @@ public:
     uiString			getUserTypeStr() const override
 				{ return tr("Marching Cubes Geobody"); }
 
+    void			convertZValues(const UnitOfMeasure*, bool,
+					       bool parallel=true) override;
+
 protected:
 
     SamplingData<int>		inlsampling_;

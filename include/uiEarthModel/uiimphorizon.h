@@ -41,7 +41,7 @@ public:
 			uiImportHorizon(uiParent*,bool);
 			~uiImportHorizon();
 
-    MultiID		getSelID() const;
+    MultiID		getSelID(bool noerror=false) const;
 
     Notifier<uiImportHorizon>	importReady;
 
@@ -98,7 +98,7 @@ public:
 				uiImpHorFromZMap(uiParent*);
 				~uiImpHorFromZMap();
 
-    MultiID			getSelID() const;
+    MultiID			getSelID(bool noerror=false) const;
 
     Notifier<uiImpHorFromZMap>	importReady;
 

@@ -141,4 +141,11 @@ Executor* FaultSet3D::saver()
     return transl->writer( *this, *ioobj );
 }
 
+
+void FaultSet3D::convertZValues( const UnitOfMeasure* zunit, bool from,
+				 bool parallel )
+{
+    EMObject::convertZValues( zunit, from, parallel );
+}
+
 } // namespace EM
