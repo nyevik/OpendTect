@@ -1776,25 +1776,47 @@ void IOPar::fillJSON( OD::JSON::Object& jsonobj, const BufferStringSet& keys,
 		continue;
 	    }
 
-	    bool isbool = true, isint = true, isnum = true;
+	    int nrbool = 0, nrint = 0, nrdouble = 0, nrstring = 0;
+	    BoolTypeSet hasbools, hasints, hasdoubles, hasstrings;
+	    const int sz = fms.size();
+	    hasbools.setSize( sz, false );
+	    hasints.setSize( sz, false );
+	    hasdoubles.setSize( sz, false );
+	    hasstrings.setSize( sz, false );
 	    for ( int idy=0; idy<fms.size(); idy++ )
 	    {
-		if ( !isBoolString(fms[idy]) )
-		    isbool = false;
-
-		if ( !isNumberString(fms[idy],false) )
-		    isnum = isint = false;
-		else if ( !isNumberString(fms[idy],true) )
-		    isint = false;
+		if ( isBoolString(fms[idy]) )
+		{
+		    hasbools[idy] = true;
+		    nrbool++;
+		}
+		else if ( isNumberString(fms[idy],false) )
+		{
+		    if ( isNumberString(fms[idy],true) )
+		    {
+			hasints[idy] = true;
+			nrint++;
+		    }
+		    else
+		    {
+			hasdoubles[idy] = true;
+			nrdouble++;
+		    }
+		}
+		else
+		{
+		    hasstrings[idy] = true;
+		    nrstring++;
+		}
 	    }
 
 	    if ( fms.size() == 1 )
 	    {
-		if ( isbool )
+		if ( hasbools[0] )
 		    jsonobj.set( key, toBool(val) );
-		else if ( isint )
-		    jsonobj.set( key, toInt(val) );
-		else if ( isnum )
+		else if ( hasints[0] )
+		    jsonobj.set( key, toInt64(val) );
+		else if ( hasdoubles[0] )
 		    jsonobj.set( key, toDouble(val) );
 		else
 		{
@@ -1807,17 +1829,37 @@ void IOPar::fillJSON( OD::JSON::Object& jsonobj, const BufferStringSet& keys,
 		continue;
 	    }
 
+	    int nrtypes = 0;
+	    if ( nrbool>0 )
+		nrtypes++;
+	    if ( nrint>0 )
+		nrtypes++;
+	    if ( nrdouble>0 )
+		nrtypes++;
+	    if ( nrstring>0 )
+		nrtypes++;
+
+	    OD::JSON::DataType datatype;
+	    if ( nrtypes > 1 )
+		datatype = OD::JSON::Mixed;
+	    else if ( nrbool > 0 )
+		datatype = OD::JSON::Boolean;
+	    else if ( nrint > 0 )
+		datatype = OD::JSON::INumber;
+	    else if ( nrdouble > 0 )
+		datatype = OD::JSON::Number;
+	    else
+		datatype = OD::JSON::String;
+
 	    // Make JSON Array
-	    OD::JSON::DataType datatype = isbool ? OD::JSON::Boolean
-			: (isnum ? OD::JSON::Number : OD::JSON::String);
-	    OD::JSON::Array* arr = new OD::JSON::Array( datatype );
+	    auto* arr = new OD::JSON::Array( datatype );
 	    for ( int idy=0; idy<fms.size(); idy++ )
 	    {
-		if ( isbool )
+		if ( hasbools[idy] )
 		    arr->add( toBool(fms[idy]) );
-		else if ( isint )
-		    arr->add( toInt(fms[idy]) );
-		else if ( isnum )
+		else if ( hasints[idy] )
+		    arr->add( toInt64(fms[idy]) );
+		else if ( hasdoubles[idy] )
 		    arr->add( toDouble(fms[idy]) );
 		else
 		    arr->add( fms[idy] );
@@ -1926,7 +1968,17 @@ bool IOPar::useJSON( const char* key, const OD::JSON::Array& jsonarr )
     {
 	FileMultiString fms;
 	for ( int idx=0; idx<jsonarr.size(); idx++ )
-	    fms.add( jsonarr.getStringValue(idx) );
+	{
+	    const OD::JSON::DataType dtype = jsonarr.dType(idx);
+	    if ( dtype == OD::JSON::Boolean )
+		fms.add( getYesNoString(jsonarr.getBoolValue(idx)) );
+	    else if ( dtype == OD::JSON::INumber )
+		fms.add( jsonarr.getIntValue(idx) );
+	    else if ( dtype == OD::JSON::Number )
+		fms.add( jsonarr.getDoubleValue(idx) );
+	    else
+		fms.add( jsonarr.getStringValue(idx) );
+	}
 
 	set( key, fms );
 	return true;
