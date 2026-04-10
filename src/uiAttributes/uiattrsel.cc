@@ -163,18 +163,6 @@ void uiAttrSelDlg::initAndBuild( const uiString& seltxt,
     createSelectionButtons();
     createSelectionFields();
 
-    CtxtIOObj* ctio = mMkCtxtIOObj( SeisTrc );
-    if ( ctio )
-    {
-	const BufferStringSet nms;
-	uiButton* but = uiIOObjInserter::createInsertButton( this, *ctio,
-							    inserters_, nms );
-	for ( auto* inserter : inserters_ )
-	    mAttachCB( inserter->objInserterd, uiAttrSelDlg::objInserted );
-
-	but->attach( ensureBelow, selgrp_ );
-    }
-
     int seltyp = 0;
     int storcur = -1, attrcur = -1, nlacur = -1;
     if ( attrdata_.nlamodel_ && attrdata_.outputnr_ >= 0 )
@@ -282,13 +270,13 @@ void uiAttrSelDlg::createSelectionButtons()
     const bool havesteered = attrinf_->steernms_.size();
 
     selgrp_ = new uiButtonGroup( this, "Input selection", OD::Vertical );
-    storfld_ = new uiRadioButton( selgrp_, uiStrings::sStored() );
+    storfld_ = new uiRadioButton( selgrp_, tr("Stored Volumes") );
     storfld_->activated.notify( mCB(this,uiAttrSelDlg,selDone) );
     storfld_->setSensitive( havestored );
 
     if ( showsteerdata_ )
     {
-	steerfld_ = new uiRadioButton( selgrp_, uiStrings::sSteering() );
+	steerfld_ = new uiRadioButton( selgrp_, tr("Steering Cubes") );
 	steerfld_->activated.notify( mCB(this,uiAttrSelDlg,selDone) );
 	steerfld_->setSensitive( havesteered );
     }

@@ -82,18 +82,6 @@ void uiEMAttrSelDlg::initAndBuild( const uiString& seltxt,
     createSelectionButtons();
     createSelectionFields();
 
-    CtxtIOObj* ctio = mMkCtxtIOObj( SeisTrc );
-    if ( ctio )
-    {
-	const BufferStringSet nms;
-	uiButton* but = uiIOObjInserter::createInsertButton( this, *ctio,
-							    inserters_, nms );
-	for ( auto* inserter : inserters_ )
-	    mAttachCB( inserter->objInserterd, uiEMAttrSelDlg::objInserted );
-
-	but->attach( ensureBelow, selgrp_ );
-    }
-
     int seltyp = sLastSelType;
     int storcur = -1, attrcur = -1, nlacur = -1;
     if ( attrdata_.nlamodel_ && attrdata_.outputnr_ >= 0 )
