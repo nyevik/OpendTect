@@ -443,6 +443,7 @@ void uiIOObjSelGrp::init( const uiString& seltxt )
 
     initFSWatcher();
     setHAlignObj( topgrp_ );
+    mAttachCB( preFinalize(), uiIOObjSelGrp::preInitGrpCB );
     mAttachCB( postFinalize(), uiIOObjSelGrp::initGrpCB );
 }
 
@@ -1146,10 +1147,6 @@ void uiIOObjSelGrp::fillListBox()
 
     listfld_->setEmpty();
     listfld_->addItems( dataset_.getDispNms() );
-    if ( setup_.resizelbwidth_ )
-	listfld_->resizeToContents();
-    else
-	listfld_->resizeHeightToContents();
 
     if ( requireIcon() )
     {
@@ -1168,6 +1165,9 @@ void uiIOObjSelGrp::fillListBox()
     const TypeSet<int>& defaultidxs = dataset_.getDefaultIdxs();
     for ( const auto& idx : defaultidxs )
 	listfld_->setBold( idx, true );
+
+    if ( !finalized() )
+	listfld_->resizeToContents();
 
     selectionChanged.trigger();
 }
@@ -1247,9 +1247,15 @@ void uiIOObjSelGrp::triggerStatusMsg( const char* txt )
 }
 
 
+void uiIOObjSelGrp::preInitGrpCB( CallBacker* cb )
+{
+    // done to set the size of list before finalizing.
+    fullUpdate( -1 );
+}
+
+
 void uiIOObjSelGrp::initGrpCB( CallBacker* cb )
 {
-    fullUpdate( -1 );
     setInitial( cb );
 }
 

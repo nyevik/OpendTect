@@ -70,7 +70,6 @@ protected:
     virtual void		doLocateCB(CallBacker*)		    {}
     void			readNotes();
     void			setInfo(const char* txt);
-    void			setPrefWidth(int width); //!< width in char
     void			createDefaultUI(bool needreloc=false,
 						bool needremove=true,
 						bool multisel=true);

@@ -122,7 +122,6 @@ public:
 	mDefSetupMembInit(bool,withinserters,true);
 	mDefSetupMembInit(bool,withwriteopts,true);
 	mDefSetupMembInit(bool,confirmoverwrite,true);
-	mDefSetupMembInit(bool,resizelbwidth,true);
 	mDefSetupMemb(BufferString,withctxtfilter);
 	mDefSetupMemb(BufferStringSet,trsnotallwed);
 	//!<key can be either a translator group name or omf metadata key
@@ -238,6 +237,7 @@ protected:
     void		triggerStatusMsg(const char*);
 
     void		initGrpCB(CallBacker*);
+    void		preInitGrpCB(CallBacker*);
     void		setInitial(CallBacker*);
     void		selChg(CallBacker*);
     void		choiceChg(CallBacker*);
