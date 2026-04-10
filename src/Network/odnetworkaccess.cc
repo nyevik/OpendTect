@@ -178,6 +178,20 @@ uiRetVal Network::downloadFiles( BufferStringSet& urls,
 }
 
 
+uiRetVal Network::downloadToBuffer( const char* url, DataBuffer& databuf,
+				   TaskRunner* taskr )
+{
+    BufferString bs;
+    const uiRetVal res = downloadToString( url, bs, taskr );
+    databuf.reSize( bs.size(), false );
+    databuf.reByte( 1, false );
+    if ( databuf.isOk() && !bs.isEmpty() )
+	OD::memCopy( (char*)databuf.data(), bs.str(), databuf.size() );
+
+    return res;
+}
+
+
 uiRetVal Network::downloadToString( const char* url, BufferString& str,
 				    TaskRunner* taskr )
 {
