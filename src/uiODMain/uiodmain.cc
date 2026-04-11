@@ -1001,6 +1001,11 @@ bool uiODMain::closeOK( bool withinteraction, bool doconfirm )
 	 }
      }
 
+     // Clean up all scenes manually. If QT closes it down, it will trigger new rendering,
+     // which requires a GL context, which is only partially available.
+     if ( scenemgr_ )
+        scenemgr_->cleanUp(false);
+
      beforeExit.trigger();
 
      if ( failed_ )
