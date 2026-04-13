@@ -6,6 +6,15 @@
 #
 
 macro( OD_FIND_OSGDIR )
+    ## \brief Prefer an explicit OSG install prefix from the environment.
+    ## \details OpendTect only builds bundled osgGeo when the CMake variable
+    ## OSG_ROOT points at a valid install prefix. Importing ENV{OSG_ROOT}
+    ## keeps shell-configured custom OSG installs usable during fresh
+    ## configure runs before any library-based fallback detection happens.
+    if ( ( NOT DEFINED OSG_ROOT OR "${OSG_ROOT}" STREQUAL "" ) AND
+	 DEFINED ENV{OSG_ROOT} AND IS_DIRECTORY "$ENV{OSG_ROOT}" )
+	set( OSG_ROOT "$ENV{OSG_ROOT}" )
+    endif()
     if ( NOT DEFINED OSG_ROOT )
 	if ( DEFINED OSG_LIBRARY_RELEASE AND EXISTS ${OSG_LIBRARY_RELEASE} )
 	    get_filename_component( OSG_ROOT ${OSG_LIBRARY_RELEASE} DIRECTORY )
