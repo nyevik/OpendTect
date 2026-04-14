@@ -89,13 +89,16 @@ macro( QT_SETUP_CORE_INTERNALS )
 	set( QTCONFTXT_DEBUG "${QTCONFTXT_DEBUG}Translations=Contents/translations\n" )
 	install( CODE "
 		    if( \"$<CONFIG>\" STREQUAL \"Debug\" )
+		        file( MAKE_DIRECTORY \"${CMAKE_INSTALL_PREFIX_ed}/${OD_RUNTIME_DIRECTORY}\" )
 		        file( WRITE \"${CMAKE_INSTALL_PREFIX_ed}/${OD_RUNTIME_DIRECTORY}/qt.conf\" \"${QTCONFTXT_DEBUG}\" ) 
 		    else()
+		        file( MAKE_DIRECTORY \"${CMAKE_INSTALL_PREFIX_ed}/${OD_RUNTIME_DIRECTORY}\" )
 		        file( WRITE \"${CMAKE_INSTALL_PREFIX_ed}/${OD_RUNTIME_DIRECTORY}/qt.conf\" \"${QTCONFTXT}\" ) 
 		    endif()
 		      " )
     else()
 	install( CODE "
+		 file( MAKE_DIRECTORY \"${CMAKE_INSTALL_PREFIX_ed}/${OD_RUNTIME_DIRECTORY}\" )
 		 file( WRITE \"${CMAKE_INSTALL_PREFIX_ed}/${OD_RUNTIME_DIRECTORY}/qt.conf\" \"${QTCONFTXT}\" ) " )
     endif()
 
