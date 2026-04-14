@@ -240,22 +240,20 @@ PtrMan<Network::PacketFiller> Network::RequestPacket::setPayload(
 					 const ObjectSet<ArrayNDInfo>& infos,
 					 const TypeSet<OD::DataRepType>& types )
 {
-    OD::JSON::Array* shapes = new OD::JSON::Array( OD::JSON::ValueSet::Data );
-    OD::JSON::Array* dtypes = new OD::JSON::Array( OD::JSON::String );
+    auto* shapes = new OD::JSON::Array( false );
     od_int64 totsz = 0;
+    BufferStringSet dtypes;
     for ( int idx=0; idx<infos.size(); idx++ )
     {
 	const ArrayNDInfo& info = *infos.get( idx );
 	const OD::DataRepType type = types[idx];
 	const DataCharacteristics dc( type );
 	totsz += info.getTotalSz() * dc.nrBytes();
-	OD::JSON::Array* shape =
-	    shapes->add( new OD::JSON::Array(OD::JSON::Number) );
 	TypeSet<ArrayNDInfo::dim_idx_type> ndpos;
 	for ( ArrayNDInfo::nr_dims_type idim=0; idim<info.getNDim(); idim++ )
 	    ndpos += info.getSize( idim );
-	shape->set( ndpos );
-	dtypes->add( OD::PythonAccess::getDataTypeStr(type) );
+	shapes->add( ndpos );
+	dtypes.add( OD::PythonAccess::getDataTypeStr(type) );
     }
 
     OD::JSON::Object hdr = getDefaultJsonHeader( false, totsz ); //More size?
@@ -391,7 +389,7 @@ PtrMan<Network::PacketInterpreter> Network::RequestPacket::getPayload(
 
     BufferStringSet dtypes;
     const OD::JSON::Array* shapes = hdr.getArray( "array-shape" );
-    if ( !shapes || !hdr.getArray( "content-encoding" )->getStrings(dtypes) ||
+    if ( !shapes || !hdr.get("content-encoding",dtypes) ||
 	 dtypes.size() != shapes->size() )
 	return nullptr;
 
