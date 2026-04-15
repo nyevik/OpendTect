@@ -172,6 +172,7 @@ uiIOObjSel::Setup::Setup( const uiString& seltxt )
     , confirmoverwr_(true)
     , withinserters_(false)
     , withwriteopts_(true)
+    , autoupdate_(true)
     , filldef_(true)
 {}
 
@@ -266,6 +267,14 @@ void uiIOObjSel::init()
     mAttachCB( preFinalize(), uiIOObjSel::preFinalizeCB );
     mAttachCB( IOM().afterSurveyChange, uiIOObjSel::survChangedCB );
     mAttachCB( optionalChecked, uiIOObjSel::optCheckCB );
+    if ( workctio_.ctxt_.forread_ )
+    {
+	mAttachCB( IOM().entryAdded, uiIOObjSel::entryAddedCB );
+	mAttachCB( IOM().entriesAdded, uiIOObjSel::entriesAddedCB );
+	mAttachCB( IOM().entryRemoved, uiIOObjSel::entryRemovedCB );
+	mAttachCB( IOM().entriesRemoved, uiIOObjSel::entriesRemovedCB );
+	mAttachCB( IOM().entryChanged, uiIOObjSel::entryChangedCB );
+    }
 }
 
 
@@ -763,4 +772,62 @@ IOObj* uiIOObjSel::createEntry( const char* nm )
     workctio_.setName( nm );
     workctio_.fillObj( false );
     return workctio_.ioobj_ ? workctio_.ioobj_->clone() : nullptr;
+}
+
+
+void uiIOObjSel::entryAddedCB( CallBacker* cb )
+{
+    auto* cbcaps = dCast( CBCapsule<const MultiID&>*, cb );
+    if ( cbcaps )
+	checkEntryAndUpdateList( cbcaps->data, true );
+}
+
+
+void uiIOObjSel::entriesAddedCB( CallBacker* cb )
+{
+    auto* cbcaps = dCast( CBCapsule<const TypeSet<MultiID>&>*, cb );
+    if ( cbcaps && !cbcaps->data.isEmpty() )
+	checkEntryAndUpdateList( cbcaps->data.first(), true );
+}
+
+
+void uiIOObjSel::entryRemovedCB( CallBacker* cb )
+{
+    auto* cbcaps = dCast( CBCapsule<const MultiID&>*, cb );
+    if ( cbcaps )
+	checkEntryAndUpdateList( cbcaps->data, false );
+}
+
+
+void uiIOObjSel::entriesRemovedCB( CallBacker* cb )
+{
+    auto* cbcaps = dCast( CBCapsule<const TypeSet<MultiID>&>*, cb );
+    if ( cbcaps && !cbcaps->data.isEmpty() )
+	checkEntryAndUpdateList( cbcaps->data.first(), false );
+}
+
+
+void uiIOObjSel::entryChangedCB( CallBacker* cb )
+{
+    auto* cbcaps = dCast( CBCapsule<const MultiID&>*, cb );
+    if ( cbcaps )
+	checkEntryAndUpdateList( cbcaps->data, false );
+}
+
+
+void uiIOObjSel::checkEntryAndUpdateList( const MultiID& id, bool newentry )
+{
+    const MultiID selkey = inctio_.ctxt_.getSelKey();
+    if ( selkey.groupID() != id.groupID() )
+	return;
+
+    if ( newentry )
+    {
+	if ( !inctio_.ctxt_.validObj(id) )
+	    return;
+    }
+    else if ( !entries_.isPresent(id.toString()) )
+	return;
+
+    fillEntries();
 }
