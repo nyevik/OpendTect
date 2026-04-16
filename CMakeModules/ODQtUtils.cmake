@@ -6,7 +6,12 @@
 #
 
 macro( OD_FIND_QT )
-    if ( NOT DEFINED QT_ROOT )
+    if ( ( NOT DEFINED QT_ROOT OR "${QT_ROOT}" STREQUAL "" ) AND
+	 DEFINED ENV{QT_ROOT} AND NOT "$ENV{QT_ROOT}" STREQUAL "" AND
+	 IS_DIRECTORY "$ENV{QT_ROOT}" )
+	set( QT_ROOT "$ENV{QT_ROOT}" )
+    endif()
+    if ( NOT DEFINED QT_ROOT OR "${QT_ROOT}" STREQUAL "" )
 	find_package( QT NAMES Qt6 Qt5 QUIET COMPONENTS Core GLOBAL )
 	if ( IS_DIRECTORY "${QT_DIR}" )
 	    get_filename_component( QT_ROOT "${QT_DIR}/../../../" ABSOLUTE )

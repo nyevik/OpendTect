@@ -35,6 +35,15 @@ project( "OpendTect"
     VERSION ${OpendTect_VERSION_MAJOR}.${OpendTect_VERSION_MINOR}.${OpendTect_VERSION_PATCH}
     DESCRIPTION "OpendTect" )
 
+if ( DEFINED ENV{OD_INSTALL_PREFIX} AND
+     NOT "$ENV{OD_INSTALL_PREFIX}" STREQUAL "" AND
+     CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT )
+    file( TO_CMAKE_PATH "$ENV{OD_INSTALL_PREFIX}" OD_INSTALL_PREFIX_FROM_ENV )
+    set( CMAKE_INSTALL_PREFIX "${OD_INSTALL_PREFIX_FROM_ENV}" CACHE PATH
+	 "Install path prefix, prepended onto install directories." FORCE )
+    unset( OD_INSTALL_PREFIX_FROM_ENV )
+endif()
+
 if ( POLICY CMP0011 )
     cmake_policy( SET CMP0011 NEW )
 endif()

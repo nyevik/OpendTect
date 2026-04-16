@@ -1,0 +1,71 @@
+{
+  "version": 4,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 24,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "linux-base",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "linux-ninja-debug",
+      "inherits": "linux-base",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/.odbuild/vscode/linux-ninja-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "linux-ninja-release",
+      "inherits": "linux-base",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/.odbuild/vscode/linux-ninja-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "linux-make-debug",
+      "inherits": "linux-base",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/.odbuild/vscode/linux-make-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "linux-make-release",
+      "inherits": "linux-base",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/.odbuild/vscode/linux-make-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "linux-ninja-debug",
+      "configurePreset": "linux-ninja-debug"
+    },
+    {
+      "name": "linux-ninja-release",
+      "configurePreset": "linux-ninja-release"
+    },
+    {
+      "name": "linux-make-debug",
+      "configurePreset": "linux-make-debug"
+    },
+    {
+      "name": "linux-make-release",
+      "configurePreset": "linux-make-release"
+    }
+  ]
+}

@@ -6,6 +6,11 @@
 #
 
 macro( OD_FIND_SQLITE )
+    if ( ( NOT DEFINED SQLite3_ROOT OR "${SQLite3_ROOT}" STREQUAL "" ) AND
+	 DEFINED ENV{SQLite3_ROOT} AND NOT "$ENV{SQLite3_ROOT}" STREQUAL "" AND
+	 IS_DIRECTORY "$ENV{SQLite3_ROOT}" )
+	set( SQLite3_ROOT "$ENV{SQLite3_ROOT}" )
+    endif()
 
     if ( NOT TARGET SQLite::SQLite3 )
 	find_package( SQLite3 QUIET GLOBAL )

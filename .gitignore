@@ -39,6 +39,7 @@ packages/
 __pycache__
 
 build*
+.odbuild/
 src/*/moc_*
 src/*/*_autogen
 plugins/*/*_autogen
@@ -149,4 +150,3 @@ x64
 # Linux
 
 # Mac
-
