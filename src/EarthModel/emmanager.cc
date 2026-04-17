@@ -85,7 +85,6 @@ namespace EM
 const char* EMManager::displayparameterstr() { return "Display Parameters"; }
 
 
-
 mImplFactory1Param( EMObject, EMManager&, EMOF );
 
 EMManager::EMManager()
@@ -94,6 +93,7 @@ EMManager::EMManager()
 {
     Strat::LevelSet& lvlset = Strat::eLVLS();
     mAttachCB( lvlset.levelToBeRemoved, EMManager::levelToBeRemoved );
+    mAttachCB( IOM().surveyChanged, EMManager::cleanSurveyZUnits );
 }
 
 
@@ -531,6 +531,12 @@ void EMManager::levelToBeRemoved( CallBacker* cb )
 	if ( hor && hor->stratLevelID() == lvlid )
 	    hor->setNoLevelID();
     }
+}
+
+
+void EMManager::cleanSurveyZUnits( CallBacker* cb )
+{
+    EMObject::cleanSurveyZUnits();
 }
 
 

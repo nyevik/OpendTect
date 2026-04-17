@@ -302,6 +302,8 @@ public:
     static const UnitOfMeasure* surveyTimeStorageUnit();
     static const UnitOfMeasure* surveyTimeDisplayUnit();
 
+    static void			cleanSurveyZUnits();
+
     virtual const IOObjContext& getIOObjContext() const = 0;
 
     Interval<float>		getZRange(bool compute_if_needed=false) const;
