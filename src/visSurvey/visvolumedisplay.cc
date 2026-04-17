@@ -583,7 +583,8 @@ void VolumeDisplay::setTrcKeyZSampling( const TrcKeyZSampling& desiredcs,
     mSetVolumeTransform( TexVolume, texcenter, texwidth, texcs, 1 )
 
     texturecs_ = cs;
-    scalarfield_->turnOn( false );
+    if ( getUpdateStageNr() > 0 )
+	scalarfield_->turnOn( false );
 
     for ( int idx=0; idx<isosurfaces_.size(); idx++ )
     {
