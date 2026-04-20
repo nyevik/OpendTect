@@ -541,8 +541,13 @@ private:
     uiString		userName() const override { return sFactoryUserName(); }
     bool		readingSupported() const override	{ return true; }
 
-    bool		isReadable(const char*) const override;
-    od_int64		getFileSize(const char*,bool) const override;
+    bool		isReadable(const char* url) const override;
+    od_int64		getFileSize(const char* url,bool followlink,
+				    uiString*) const override;
+    bool		getContent(const char* url,BufferString&,
+				   uiString* errmsg,TaskRunner*) const override;
+    bool		putContent(const char* buf,int sz,const char* url,
+				   uiString* errmsg,TaskRunner*) const override;
     File::Type		getType(const char*,bool followlinks) const override;
     StreamData		createIStream(const char*,bool) const override;
     StreamData		createOStream(const char*,bool,bool) const override;
@@ -604,9 +609,24 @@ File::Type Network::HttpFileSystemAccess::getType( const char* uri,
 
 
 od_int64 Network::HttpFileSystemAccess::getFileSize( const char* uri,
-							    bool ) const
+						     bool /*followlink*/,
+						     uiString* errmsg ) const
 {
-    return Network::getFileSize( uri );
+    return Network::getFileSize( uri, errmsg );
+}
+
+
+bool Network::HttpFileSystemAccess::getContent( const char* uri,
+	BufferString& str, uiString* errmsg, TaskRunner* taskrun ) const
+{
+    return Network::getContent( uri, str, errmsg, taskrun );
+}
+
+
+bool Network::HttpFileSystemAccess::putContent( const char* buf, int sz,
+	const char* uri, uiString* errmsg, TaskRunner* taskrun ) const
+{
+    return Network::putContent( buf, sz, uri, errmsg, taskrun );
 }
 
 

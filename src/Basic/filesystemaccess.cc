@@ -128,19 +128,21 @@ private:
     bool	setWritableUsingMC(const char*,bool yn) const;
     bool	setExecutableUsingMC(const char*,bool yn) const;
     bool	rename(const char* from,const char* to,
-		       uiString* errmsg=nullptr) const override;
+		       uiString* errmsg) const override;
     bool	copy(const char* from,const char* to,bool preserve,
 		     uiString* errmsg,TaskRunner*) const override;
     bool	remove(const char*,bool recursive) const override;
-    od_int64	getFileSize(const char*, bool followlink) const override;
+    od_int64	getFileSize(const char*,bool followlink,
+			    uiString* errmsg) const override;
     bool	createDirectory(const char*) const override;
     bool	createLink(const char* src,const char* lnkfnm) const override;
     bool	listDirectory(const char*,File::DirListType,
 			      BufferStringSet&,
 			      const char* mask) const override;
-    bool	getContent(const char* fnm,BufferString&) const override;
-    bool	putContent(const char* buf,int sz,
-			   const char* tofnm) const override;
+    bool	getContent(const char* fnm,BufferString&,
+			   uiString* errmsg,TaskRunner*) const override;
+    bool	putContent(const char* buf,int sz,const char* tofnm,
+			   uiString* errmsg,TaskRunner*) const override;
 
     StreamData	createOStream(const char*,bool binary,
 			      bool editmode) const override;
@@ -477,14 +479,17 @@ bool LocalFileSystemAccess::listDirectory( const char* uri,
 }
 
 
-bool LocalFileSystemAccess::getContent( const char* uri,
-					BufferString& txt ) const
+bool LocalFileSystemAccess::getContent( const char* uri, BufferString& txt,
+					uiString* errmsg,
+					TaskRunner* /*taskrun*/ ) const
 {
     const BufferString from = withoutProtocol( uri );
     od_istream strm( from.buf() );
     if ( !strm.isOK() )
     {
-	errmsg_ = strm.errMsg();
+	if ( errmsg )
+	    *errmsg = strm.errMsg();
+
 	return false;
     }
 
@@ -494,13 +499,17 @@ bool LocalFileSystemAccess::getContent( const char* uri,
 
 
 bool LocalFileSystemAccess::putContent( const char* buf, int sz,
-					const char* touri ) const
+					const char* touri,
+					uiString* errmsg,
+					TaskRunner* /*taskrun*/ ) const
 {
     const BufferString to = withoutProtocol( touri );
     od_ostream strm( to.buf() );
     if ( !strm.isOK() )
     {
-	errmsg_ = strm.errMsg();
+	if ( errmsg )
+	    *errmsg = strm.errMsg();
+
 	return false;
     }
 
@@ -726,8 +735,8 @@ bool LocalFileSystemAccess::remove( const char* uri, bool recursive ) const
 }
 
 
-od_int64 LocalFileSystemAccess::getFileSize( const char* uri,
-					     bool followlink ) const
+od_int64 LocalFileSystemAccess::getFileSize( const char* uri, bool followlink,
+					     uiString* /*errmsg*/ ) const
 {
     const BufferString fnm = withoutProtocol( uri );
     if ( fnm.isEmpty() )
@@ -1124,7 +1133,8 @@ bool FileSystemAccess::isSymLink( const char* uri ) const
 }
 
 
-od_int64 FileSystemAccess::getFileSize( const char* uri, bool followlink ) const
+od_int64 FileSystemAccess::getFileSize( const char* uri, bool followlink,
+					uiString* /*errmsg*/ ) const
 {
     return isReadable(uri) ? -1 : 0;
 }

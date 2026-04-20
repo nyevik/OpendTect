@@ -195,14 +195,21 @@ mGlobal(Basic) bool		checkDir(const char* fnm,bool forread,
 				/*!< checks if the parent directory of a file
 				     is readable/writable */
 
-mGlobal(Basic) bool		getContent(const char*,BufferString&);
+mGlobal(Basic) bool		getContent(const char*,BufferString&,
+					   uiString* errmsg=nullptr,
+					   TaskRunner* =nullptr);
+mGlobal(Basic) bool		putContent(const OD::String&,const char* tofnm,
+					   uiString* errmsg=nullptr,
+					   TaskRunner* =nullptr);
 mGlobal(Basic) bool		putContent(const char* buf,int sz,
-					   const char* tofnm);
-mGlobal(Basic) bool		putContent(const OD::String&,const char* tofnm);
+					   const char* tofnm,
+					   uiString* errmsg=nullptr,
+					   TaskRunner* =nullptr);
 mGlobal(Basic) BufferString	getHash(const char*,Crypto::Algorithm);
 mGlobal(Basic) bool		isEmpty(const char*);
 mGlobal(Basic) od_int64		getFileSize(const char* fnm,
-					    bool followlink=true);
+					    bool followlink=true,
+					    uiString* errmsg=nullptr);
 				// -> returns size in bytes
 mGlobal(Basic) BufferString	getFileSizeString(od_int64 filesz,
 					File::SizeUnit=File::SizeUnit::Auto);

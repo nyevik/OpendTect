@@ -114,17 +114,48 @@ bool Network::exists( const char* url )
     return getRemoteFileSize( url, dum, msg );
 }
 
-od_int64 Network::getFileSize( const char* url )
+
+od_int64 Network::getFileSize( const char* url, uiString* errmsg )
 {
-    od_int64 ret; uiString msg;
-    return getRemoteFileSize( url, ret, msg ) ? ret : 0;
+    od_int64 ret;
+    uiString msg;
+    uiString& theerrormsg = errmsg ? *errmsg : msg;
+    return getRemoteFileSize( url, ret, theerrormsg ) ? ret : 0;
 }
 
-bool Network::getContent( const char* url, BufferString& bs )
+
+bool Network::getContent( const char* url, BufferString& str, uiString* errmsg,
+			  TaskRunner* taskrun )
 {
-    if ( downloadToString(url,bs).isError() )
+    DataBuffer databuffer( 0, 1 );
+    FileDownloader dl( url, databuffer );
+    const bool res = TaskRunner::execute( taskrun, dl );
+    if ( res )
+	str = databuffer.getString();
+    else if ( errmsg )
+	*errmsg = dl.allMessages().messages().cat();
+
+    return res;
+}
+
+
+bool Network::putContent( const char* buf, int sz, const char* url,
+			  uiString* errmsg, TaskRunner* taskrun )
+{
+    if ( sz < 0 )
 	return false;
-    return true;
+
+    DataBuffer databuffer( sz, 1 );
+    if ( sz > 0 )
+	OD::memCopy( (char*)databuffer.data(), buf, sz );
+
+    BufferString header;
+    DataUploader ul( url, databuffer, header );
+    const bool res = TaskRunner::execute( taskrun, ul );
+    if ( !res && errmsg )
+	*errmsg = ul.uiMessage();
+
+    return res;
 }
 
 
@@ -179,27 +210,26 @@ uiRetVal Network::downloadFiles( BufferStringSet& urls,
 
 
 uiRetVal Network::downloadToBuffer( const char* url, DataBuffer& databuf,
-				   TaskRunner* taskr )
+				   TaskRunner* taskrun )
 {
-    BufferString bs;
-    const uiRetVal res = downloadToString( url, bs, taskr );
-    databuf.reSize( bs.size(), false );
+    BufferString str;
+    uiString errmsg;
+    const bool res = getContent( url, str, &errmsg, taskrun );
+    databuf.reSize( str.size(), false );
     databuf.reByte( 1, false );
-    if ( databuf.isOk() && !bs.isEmpty() )
-	OD::memCopy( (char*)databuf.data(), bs.str(), databuf.size() );
+    if ( databuf.isOk() && !str.isEmpty() )
+	OD::memCopy( (char*)databuf.data(), str.str(), databuf.size() );
 
-    return res;
+    return res ? uiString::empty() : errmsg;
 }
 
 
 uiRetVal Network::downloadToString( const char* url, BufferString& str,
-				    TaskRunner* taskr )
+				    TaskRunner* taskrun )
 {
-    DataBuffer databuffer( 0, 1 );
-    FileDownloader dl( url, databuffer );
-    const bool res = TaskRunner::execute( taskr, dl );
-    str = databuffer.getString();
-    return res ? uiRetVal::OK() : dl.allMessages();
+    uiString errmsg;
+    const bool res = getContent( url, str, &errmsg, taskrun );
+    return res ? uiString::empty() : errmsg;
 }
 
 
