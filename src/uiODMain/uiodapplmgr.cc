@@ -1099,9 +1099,8 @@ bool uiODApplMgr::handleWellServEv( int evid )
 	if ( !sceneid.isValid() )
 	    return false;
 
-	const TypeSet<MultiID>& wellids = wellserv_->createdWellIDs();
-	for ( int idx=0; idx<wellids.size(); idx++ )
-	    sceneMgr().addWellItem( wellids.get(idx), sceneid );
+	const TypeSet<MultiID>& wellids = wellserv_->displayWellIDs();
+	sceneMgr().addWellItems( wellids, sceneid );
     }
 
     return true;
