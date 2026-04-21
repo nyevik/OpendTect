@@ -1591,7 +1591,18 @@ void dgbSurfaceWriter::finishWriting()
 	    par_->set( dgbSurfaceReader::sColStepKey(idx).buf(),idxcolstep);
     }
 
-    surface_.zDomain().fillPar( *par_ );
+    PtrMan<IOObj> objioobj = IOM().get( objectmid_ );
+    if ( objioobj )
+    {
+	const auto* objzinfo = ZDomain::Info::getFrom( objioobj->pars() );
+	if ( objzinfo )
+	    objzinfo->fillPar( *par_ );
+	else
+	    surface_.zDomain().fillPar( *par_ );
+    }
+    else
+	surface_.zDomain().fillPar( *par_ );
+
     ascostream astream( strm );
     astream.newParagraph();
     par_->putTo( astream );

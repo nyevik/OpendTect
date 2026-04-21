@@ -582,8 +582,9 @@ Array2D<float>* Horizon3D::createArray2D(
 	return nullptr;
 
     const auto* emuom = zUnit();
-    const auto* zatfinpuom =
-		UnitOfMeasure::zUnit( zaxistransform->fromZDomainInfo() );
+    const UnitOfMeasure* zatfinpuom = emuom;
+    if ( zaxistransform )
+	zatfinpuom = UnitOfMeasure::zUnit( zaxistransform->fromZDomainInfo() );
 
     Array2DImpl<float>* arr = nullptr;
     if ( zaxistransform || !geom->getArray() )

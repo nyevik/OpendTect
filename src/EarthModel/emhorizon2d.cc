@@ -721,8 +721,9 @@ Array1D<float>* Horizon2D::createArray1D( const Pos::GeomID& geomid,
 	return nullptr;
 
     const UnitOfMeasure* emuom = zUnit();
-    const UnitOfMeasure* zatfinpuom =
-			UnitOfMeasure::zUnit( trans->fromZDomainInfo() );
+    const UnitOfMeasure* zatfinpuom = emuom;
+    if ( trans )
+	zatfinpuom = UnitOfMeasure::zUnit( trans->fromZDomainInfo() );
 
     Array1DImpl<float>* arr = nullptr;
     const int lineidx = geom->getRowIndex( geomid );

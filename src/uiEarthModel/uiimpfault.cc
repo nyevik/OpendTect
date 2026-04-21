@@ -322,13 +322,22 @@ bool uiImportFault::handleAscii()
     if ( !res )
 	mErrRet( uiStrings::phrImport(tp));
 
-    // Conversion before saving ensures Z values are in the correct unit
-    fault->convertZValues( fault->surveyDisplayUnit(), true );
-    // saving resets the changed_ flag resetChangedFlag
     PtrMan<Executor> exec = fault->saver();
     bool isexec = exec->execute();
     if ( !isexec )
 	mErrRet( uiStrings::phrCannotSave(tp) );
+
+    fault->convertZValues( fault->surveyDisplayUnit(), true );
+
+    if ( fault->zDomain().isDepth() )
+    {
+	const auto& zdom = ZDomain::Info::getFrom(
+				    fault->zDomain().key(),
+				    fault->surveyDisplayUnit()->getLabel() );
+	fault->setZDomain( zdom );
+    }
+
+    fault->resetChangedFlag();
 
     if ( saveButtonChecked() )
 	importReady.trigger();
