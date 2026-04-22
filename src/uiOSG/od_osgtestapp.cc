@@ -8,19 +8,27 @@
 #include <QMessageBox>
 #include <QMouseEvent>
 #include <QOpenGLWidget>
+#include <QScreen>
 #include <QMdiSubWindow>
 #include <QSurfaceFormat>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QWheelEvent>
+#include <QWindow>
 
 #include <osg/Camera>
 #include <osg/Geometry>
 #include <osg/Geode>
 #include <osg/Group>
 #include <osg/LineWidth>
+#include <osg/Image>
+#include <osg/Texture2D>
+#include <osg/FrameBufferObject>
+#include <osg/GraphicsContext>
 #include <osg/Matrix>
+#include <osg/Depth>
 #include <osg/ShapeDrawable>
+#include <osg/CopyOp>
 #include <osgDB/WriteFile>
 #include <osgGA/TrackballManipulator>
 #include <osgViewer/Viewer>
@@ -33,12 +41,14 @@ class OSGWindow : public QMainWindow {
     Q_OBJECT
 
 public:
-    explicit OSGWindow(QWidget* parent=nullptr);
-    ~OSGWindow();
+    explicit	OSGWindow(QWidget* parent=nullptr);
+		~OSGWindow();
 
     void setOSGWidget(OSGWidget*);
 
 private:
+    QSize currentScreenDPI() const;
+
     OSGWidget*	osgwidget_	= nullptr;
 
 private slots:
@@ -57,11 +67,12 @@ public:
     OSGWidget(QWidget* parent=nullptr);
     ~OSGWidget();
 
-    void doScreenShot(int res) const;
+    bool doScreenShot(const QSize& dpi,double scalefactor,const char* destpath,
+                      std::string& msg) const;
 
 protected:
     void initializeGL() override;
-    void resizeGL(int w, int h) override;
+    void resizeGL(int w,int h) override;
     void paintGL() override;
 
     void mousePressEvent(QMouseEvent*) override;
@@ -101,12 +112,12 @@ OSGWindow::OSGWindow(QWidget* parent)
     fileMenu->addSeparator();
     QAction* exitact = fileMenu->addAction("Exit");
 
-    connect(openact, &QAction::triggered, this, &OSGWindow::onOpen);
-    connect(saveact, &QAction::triggered, this, &OSGWindow::onSave);
-    connect(screenshotact, &QAction::triggered, this, &OSGWindow::onTakeScreenshot);
-    connect(exitact, &QAction::triggered, this, &OSGWindow::onExit);
+    connect( openact, &QAction::triggered, this, &OSGWindow::onOpen );
+    connect( saveact, &QAction::triggered, this, &OSGWindow::onSave );
+    connect( screenshotact, &QAction::triggered, this, &OSGWindow::onTakeScreenshot );
+    connect( exitact, &QAction::triggered, this, &OSGWindow::onExit );
 
-    setMenuBar(menuBar);
+    setMenuBar( menuBar );
 }
 
 
@@ -120,35 +131,72 @@ void OSGWindow::setOSGWidget( OSGWidget* osgwidget )
 }
 
 
-void OSGWindow::onOpen() {
-    const QString path = QFileDialog::getOpenFileName(this, "Open File");
-    if (!path.isEmpty()) {
-        QMessageBox::information(this, "File Opened", "You selected:\n" + path);
-        // TODO: load file into OSGWidget
+QSize OSGWindow::currentScreenDPI() const
+{
+    QScreen* targetScreen = nullptr;
+
+    if ( windowHandle() )
+	targetScreen = windowHandle()->screen();
+    if ( !targetScreen )
+	targetScreen = screen();
+    if ( !targetScreen )
+	targetScreen = QGuiApplication::primaryScreen();
+
+    if ( !targetScreen )
+	return QSize( 94., 94. );
+
+    // Physical DPI corresponds to the real monitor density.
+    return QSize( targetScreen->physicalDotsPerInchX(),
+		  targetScreen->physicalDotsPerInchY() );
+}
+
+
+void OSGWindow::onOpen()
+{
+    const QString path = QFileDialog::getOpenFileName( this, "Open File" );
+    if ( !path.isEmpty() )
+    {
+	QMessageBox::information( this, "File Opened",
+				  "You selected:\n" + path );
+	// TODO: load file into OSGWidget
     }
 }
 
 
-void OSGWindow::onSave() {
-    const QString path = QFileDialog::getSaveFileName(this, "Save File");
-    if (!path.isEmpty()) {
-        QMessageBox::information(this, "File Saved", "Saved to:\n" + path);
-        // TODO: save OSG scene
+void OSGWindow::onSave()
+{
+    const QString path = QFileDialog::getSaveFileName( this, "Save File" );
+    if (!path.isEmpty())
+    {
+	QMessageBox::information( this, "File Saved", "Saved to:\n" + path );
+	// TODO: save OSG scene
     }
 }
 
 
-void OSGWindow::onTakeScreenshot() {
-    if ( !osgwidget_ ) {
-        QMessageBox::critical(this, "Error", "No viewer available");
+void OSGWindow::onTakeScreenshot()
+{
+    if ( !osgwidget_ )
+    {
+	QMessageBox::critical( this, "Error", "No viewer available" );
 	return;
     }
 
-    osgwidget_->doScreenShot( 72 );
+    const double scalefactor = 2.;
+    const QString outpath = QDir(QDir::tempPath()).filePath("screenshot.png");
+    std::string msg;
+    if ( !osgwidget_->doScreenShot(currentScreenDPI(),scalefactor,outpath.toStdString().c_str(),msg) )
+    {
+	QMessageBox::critical( this, "Error", msg.c_str() );
+	return;
+    }
+
+    QMessageBox::information( this, "Screenshot", msg.c_str() );
 }
 
 
-void OSGWindow::onExit() {
+void OSGWindow::onExit()
+{
     close(); // closes the window
 }
 
@@ -158,36 +206,39 @@ void OSGWindow::onExit() {
 OSGWidget::OSGWidget( QWidget* parent )
     : QOpenGLWidget(parent)
 {
-    setMinimumSize(600, 400);
-    setFocusPolicy(Qt::StrongFocus);
-    setMouseTracking(true);
-    setUpdateBehavior(QOpenGLWidget::PartialUpdate);
-    setAttribute(Qt::WA_OpaquePaintEvent);
-    setAttribute(Qt::WA_NoSystemBackground);
+    setMinimumSize( 600, 400 );
+    setFocusPolicy( Qt::StrongFocus );
+    setMouseTracking( true );
+    setUpdateBehavior( QOpenGLWidget::PartialUpdate );
+    setAttribute( Qt::WA_OpaquePaintEvent );
+    setAttribute( Qt::WA_NoSystemBackground );
 
     viewer_ = new osgViewer::Viewer;
-    viewer_->setThreadingModel(osgViewer::Viewer::SingleThreaded);
-//    viewer_->setThreadingModel(osgViewer::Viewer::DrawThreadPerContext);
+    viewer_->setThreadingModel( osgViewer::Viewer::SingleThreaded );
 
     rendertimer_ = new QTimer(this);
     connect(rendertimer_, &QTimer::timeout, this, [&]() {
-	update();
+	    update();
     });
-    rendertimer_->start(16);
+
+    const int rendertimems = 16;
+    rendertimer_->start( rendertimems );
 }
 
 
 OSGWidget::~OSGWidget()
 {
-    OSGWindow* osgwin = dynamic_cast<OSGWindow*>( QApplication::activeWindow() );
+    auto* osgwin = dynamic_cast<OSGWindow*>( QApplication::activeWindow() );
     if ( osgwin )
 	osgwin->setOSGWidget( nullptr );
 }
 
 
-void OSGWidget::initializeGL() {
+void OSGWidget::initializeGL()
+{
     // Connect OSG graphics context to Qt's native window
-    osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits;
+    osg::ref_ptr<osg::GraphicsContext::Traits> traits =
+					new osg::GraphicsContext::Traits;
     traits->x = 0;
     traits->y = 0;
     traits->width = this->width();
@@ -196,13 +247,16 @@ void OSGWidget::initializeGL() {
     traits->doubleBuffer = true;
     traits->sharedContext = nullptr;
 
-    gw_ = new osgViewer::GraphicsWindowEmbedded(traits->x, traits->y, traits->width, traits->height);
+    gw_ = new osgViewer::GraphicsWindowEmbedded( traits->x, traits->y,
+						 traits->width, traits->height);
 
     osg::ref_ptr<osg::Camera> camera = viewer_->getCamera();
-    camera->setGraphicsContext(gw_.get());
-    camera->setViewport(new osg::Viewport(0, 0, traits->width, traits->height));;
-    camera->setProjectionMatrixAsPerspective(30., double(width()) / height(), 1., 10000.);
-    camera->setClearColor(osg::Vec4(0.2f, 0.2f, 0.2f, 1.f)); // Nice neutral gray
+    camera->setGraphicsContext( gw_.get() );
+    camera->setViewport( new osg::Viewport(0, 0, traits->width,traits->height) );
+    camera->setProjectionMatrixAsPerspective( 30., double(width()) / height(),
+					      1., 10000.);
+    camera->setClearColor( osg::Vec4(0.2f, 0.2f, 0.2f, 1.f) );
+			   // Nice neutral gray
 
     // Build a scene with a cube and a line
     root_ = new osg::Group;
@@ -210,37 +264,45 @@ void OSGWidget::initializeGL() {
 
     // Cube
     osg::ref_ptr<osg::Box> cube = new osg::Box(osg::Vec3(0.f, 0.f, 0.f), 1.f);
-    osg::ref_ptr<osg::ShapeDrawable> cubeDrawable = new osg::ShapeDrawable(cube.get());
-    geode->addDrawable(cubeDrawable.get());
+    osg::ref_ptr<osg::ShapeDrawable> cubeDrawable =
+					new osg::ShapeDrawable( cube.get() );
+    geode->addDrawable( cubeDrawable.get() );
 
     // Line
     osg::ref_ptr<osg::Geometry> line = new osg::Geometry;
 
     osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
-    vertices->push_back(osg::Vec3(-2.f, 0.f, 0.f));
-    vertices->push_back(osg::Vec3(2.f, 0.f, 0.f));
-    line->setVertexArray(vertices.get());
-    line->addPrimitiveSet(new osg::DrawArrays(GL_LINES, 0, 2));
+    vertices->push_back( osg::Vec3(-2.f, 0.f, 0.f) );
+    vertices->push_back( osg::Vec3(2.f, 0.f, 0.f) );
+    line->setVertexArray( vertices.get() );
+    line->addPrimitiveSet( new osg::DrawArrays(GL_LINES, 0, 2) );
 
     osg::ref_ptr<osg::Vec4Array> colors = new osg::Vec4Array;
-    colors->push_back(osg::Vec4(1.f, 0.f, 0.f, 1.f)); // red
-    line->setColorArray(colors.get(), osg::Array::BIND_OVERALL);
+    colors->push_back( osg::Vec4(1.f, 0.f, 0.f, 1.f) ); // red
+    line->setColorArray( colors.get(), osg::Array::BIND_OVERALL );
 
-    line->getOrCreateStateSet()->setAttribute(new osg::LineWidth(3.0f), osg::StateAttribute::ON);
-    geode->addDrawable(line.get());
+    osg::StateSet* lineState = line->getOrCreateStateSet();
+    lineState->setAttribute( new osg::LineWidth(3.0f), osg::StateAttribute::ON);
+    lineState->setMode( GL_LIGHTING, osg::StateAttribute::OFF );
+    geode->addDrawable( line.get() );
 
     // Final scene setup
-    root_->addChild(geode.get());
+    root_->addChild( geode.get() );
 
-    viewer_->setSceneData(root_.get());
-    viewer_->setCameraManipulator(new osgGA::TrackballManipulator());
+    viewer_->setSceneData( root_.get() );
+    viewer_->setCameraManipulator( new osgGA::TrackballManipulator() );
 }
 
 
-static bool matricesAreClose(const osg::Matrix& m1, const osg::Matrix& m2, double epsilon = 0.0001) {
-    for (int i = 0; i < 16; ++i) {
-        if (std::abs(m1.ptr()[i] - m2.ptr()[i]) > epsilon) return false;
+static bool matricesAreClose( const osg::Matrix& m1, const osg::Matrix& m2,
+			      double epsilon = 0.0001 )
+{
+    for (int i = 0; i < 16; ++i)
+    {
+	if ( std::abs(m1.ptr()[i] - m2.ptr()[i]) > epsilon )
+	    return false;
     }
+
     return true;
 }
 
@@ -248,59 +310,70 @@ static bool matricesAreClose(const osg::Matrix& m1, const osg::Matrix& m2, doubl
 void OSGWidget::paintGL()
 {
     if ( !viewer_.valid() )
-	return;
+	    return;
 
     viewer_->frame();
-    const osg::Matrix currentviewmatrix = viewer_->getCameraManipulator()->getMatrix();
-    if ( matricesAreClose(currentviewmatrix,lastviewmatrix_) ) {
-        stillframecount_++;
-        if (stillframecount_ >= maxstillframes_) {
-            rendertimer_->stop();
-        }
-    } else {
-        stillframecount_ = 0;
-        lastviewmatrix_ = currentviewmatrix;
-	if (!rendertimer_->isActive()) {
-            rendertimer_->start(16);
-        }
+    const osg::Matrix currentviewmatrix =
+				viewer_->getCameraManipulator()->getMatrix();
+    if ( matricesAreClose(currentviewmatrix,lastviewmatrix_) )
+    {
+	stillframecount_++;
+	if ( stillframecount_ >= maxstillframes_ )
+	    rendertimer_->stop();
+    }
+    else
+    {
+	stillframecount_ = 0;
+	lastviewmatrix_ = currentviewmatrix;
+	if ( !rendertimer_->isActive() )
+	    rendertimer_->start( 16 );
     }
 }
 
 
-void OSGWidget::resizeGL(int w, int h)
+void OSGWidget::resizeGL( int w, int h )
 {
-    if ( gw_.valid() ) {
-	gw_->resized(x(), y(), w, h);
-	gw_->getEventQueue()->windowResize(x(), y(), w, h);
+    if ( gw_.valid() )
+    {
+	gw_->resized( x(), y(), w, h );
+	gw_->getEventQueue()->windowResize( x(), y(), w, h );
     }
 
-    if ( viewer_.valid() ) {
-	viewer_->getCamera()->setViewport(new osg::Viewport(0, 0, w, h));
-	viewer_->getCamera()->setProjectionMatrixAsPerspective(30., static_cast<double>(w) / h, 1., 10000.);
+    if ( viewer_.valid() )
+    {
+	viewer_->getCamera()->setViewport( new osg::Viewport(0, 0, w, h) );
+	viewer_->getCamera()->setProjectionMatrixAsPerspective(30.,
+				static_cast<double>(w) / h, 1., 10000.);
     }
 }
 
 
-void OSGWidget::mousePressEvent(QMouseEvent* event) {
+void OSGWidget::mousePressEvent( QMouseEvent* event )
+{
     const Qt::MouseButton qtbut = event->button();
-    if ( qtbut != Qt::LeftButton && qtbut != Qt::MiddleButton && qtbut != Qt::RightButton )
+    if ( qtbut != Qt::LeftButton && qtbut != Qt::MiddleButton &&
+	 qtbut != Qt::RightButton )
 	return;
 
     const QPointF pos = event->position();
-    const osgGA::GUIEventAdapter::MouseButtonMask osgbut = mapQtMouseButton(qtbut);
-    gw_->getEventQueue()->mouseButtonPress(pos.x(), pos.y(), osgbut);
+    const osgGA::GUIEventAdapter::MouseButtonMask osgbut =
+						  mapQtMouseButton( qtbut );
+    gw_->getEventQueue()->mouseButtonPress( pos.x(), pos.y(), osgbut );
     update();
 }
 
 
-void OSGWidget::mouseReleaseEvent(QMouseEvent* event) {
+void OSGWidget::mouseReleaseEvent( QMouseEvent* event )
+{
     const Qt::MouseButton qtbut = event->button();
-    if ( qtbut != Qt::LeftButton && qtbut != Qt::MiddleButton && qtbut != Qt::RightButton )
+    if ( qtbut != Qt::LeftButton && qtbut != Qt::MiddleButton &&
+	 qtbut != Qt::RightButton )
 	return;
 
     const QPointF pos = event->position();
-    const osgGA::GUIEventAdapter::MouseButtonMask osgbut = mapQtMouseButton(qtbut);
-    gw_->getEventQueue()->mouseButtonRelease(pos.x(), pos.y(), osgbut);
+    const osgGA::GUIEventAdapter::MouseButtonMask osgbut =
+						  mapQtMouseButton( qtbut );
+    gw_->getEventQueue()->mouseButtonRelease( pos.x(), pos.y(), osgbut );
     if ( !rendertimer_->isActive() )
 	rendertimer_->start(16);
 }
@@ -314,107 +387,191 @@ void OSGWidget::mouseMoveEvent(QMouseEvent* event) {
 }
 
 
-void OSGWidget::wheelEvent(QWheelEvent* event) {
-    const float delta = static_cast<float>(event->angleDelta().y()) / 120.0f; // Steps
-    if (delta > 0)
-	gw_->getEventQueue()->mouseScroll(osgGA::GUIEventAdapter::SCROLL_UP);
+void OSGWidget::wheelEvent( QWheelEvent* event )
+{
+    const float delta = static_cast<float>(event->angleDelta().y()) / 120.0f;
+    if ( delta > 0 )
+	gw_->getEventQueue()->mouseScroll( osgGA::GUIEventAdapter::SCROLL_UP );
     else
-	gw_->getEventQueue()->mouseScroll(osgGA::GUIEventAdapter::SCROLL_DOWN);
+	gw_->getEventQueue()->mouseScroll( osgGA::GUIEventAdapter::SCROLL_DOWN);
 
     update();
 }
 
 
-void OSGWidget::keyPressEvent(QKeyEvent* event) {
-    gw_->getEventQueue()->keyPress(mapQtKey(event));
+void OSGWidget::keyPressEvent( QKeyEvent* event )
+{
+    gw_->getEventQueue()->keyPress( mapQtKey(event) );
     update();
 }
 
 
-void OSGWidget::keyReleaseEvent(QKeyEvent* event) {
-    gw_->getEventQueue()->keyRelease(mapQtKey(event));
+void OSGWidget::keyReleaseEvent(QKeyEvent* event)
+{
+    gw_->getEventQueue()->keyRelease( mapQtKey(event) );
     update();
 }
 
 
-osgGA::GUIEventAdapter::MouseButtonMask OSGWidget::mapQtMouseButton(Qt::MouseButton button) {
-    switch (button) {
+osgGA::GUIEventAdapter::MouseButtonMask
+    OSGWidget::mapQtMouseButton(Qt::MouseButton button)
+{
+    switch (button)
+    {
 	case Qt::LeftButton: return osgGA::GUIEventAdapter::LEFT_MOUSE_BUTTON;
-	case Qt::MiddleButton: return osgGA::GUIEventAdapter::MIDDLE_MOUSE_BUTTON;
+	case Qt::MiddleButton:
+			     return osgGA::GUIEventAdapter::MIDDLE_MOUSE_BUTTON;
 	case Qt::RightButton: return osgGA::GUIEventAdapter::RIGHT_MOUSE_BUTTON;
 	default: return osgGA::GUIEventAdapter::LEFT_MOUSE_BUTTON;
     }
 }
 
 
-int OSGWidget::mapQtKey(QKeyEvent* event) {
+int OSGWidget::mapQtKey( QKeyEvent* event )
+{
     return event->key();
 }
 
 
-void OSGWidget::doScreenShot( int res ) const
+bool OSGWidget::doScreenShot( const QSize& /*dpi*/, double scalefactor,
+                              const char* destpath, std::string& msg ) const
 {
-    osg::ref_ptr<osg::Camera> cameraRTT = new osg::Camera;
-    cameraRTT->setRenderTargetImplementation(osg::Camera::FRAME_BUFFER_OBJECT);
-    cameraRTT->setRenderOrder(osg::Camera::POST_RENDER);
-    cameraRTT->setClearMask(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    cameraRTT->setReferenceFrame(osg::Transform::ABSOLUTE_RF);
-//    cameraRTT->setClearColor(osg::Vec4(1.0, 1.0, 1.0, 1.0)); // white background
-
-    int screenshotWidth = 1920;
-    int screenshotHeight = 1080;
-    cameraRTT->setViewport(0, 0, screenshotWidth, screenshotHeight);
-    cameraRTT->setProjectionMatrixAsPerspective(30.0f,
-	    static_cast<double>(screenshotWidth) / screenshotHeight,
-	    1.0f, 10000.0f);
-
-    osg::ref_ptr<osg::Image> image = new osg::Image;
-    cameraRTT->attach(osg::Camera::COLOR_BUFFER, image.get());
-    cameraRTT->addChild(root_.get());
-/* TODO: make it not crash
-    osgViewer::Viewer viewer;
-    viewer.setSceneData(cameraRTT.get());
-    viewer.setThreadingModel(osgViewer::Viewer::SingleThreaded);
-    viewer.frame();
-    if (image.valid() && image->data()) {
-	osgDB::writeImageFile(*image, "/tmp/screenshot.png");
+    if ( !gw_.valid() || !viewer_.valid() || !root_.valid() )
+    {
+	msg = "Error: Viewer or scene not initialized";
+	return false;
     }
- */
+
+    const int targetW = this->width() * scalefactor;
+    const int targetH = this->height() * scalefactor;
+
+    osg::Camera* cam = viewer_->getCamera();
+    if ( !cam )
+    {
+	msg = "Error: No viewer camera available";
+	return false;
+    }
+
+    osg::ref_ptr<osg::GraphicsContext::Traits> traits =
+					new osg::GraphicsContext::Traits;
+    traits->x = 0;
+    traits->y = 0;
+    traits->width = targetW;
+    traits->height = targetH;
+    traits->windowDecoration = false;
+    traits->doubleBuffer = false;
+    traits->pbuffer = true;
+    traits->sharedContext = nullptr;
+
+    osg::ref_ptr<osg::GraphicsContext> offGc =
+		osg::GraphicsContext::createGraphicsContext( traits.get() );
+    if ( !offGc.valid() )
+    {
+	msg = "Failed to create offscreen graphics context";
+        return false;
+    }
+
+    osg::ref_ptr<osg::Image> colorImg = new osg::Image;
+    colorImg->allocateImage(targetW, targetH, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+    osg::ref_ptr<osg::Camera> offCam = new osg::Camera;
+    offCam->setGraphicsContext( offGc.get() );
+    offCam->setReferenceFrame( cam->getReferenceFrame() );
+    offCam->setViewMatrix( cam->getViewMatrix() );
+    offCam->setProjectionMatrix( cam->getProjectionMatrix() );
+    offCam->setViewport( new osg::Viewport(0, 0, targetW, targetH) );
+    offCam->setCullMask( cam->getCullMask() );
+    offCam->setClearMask( cam->getClearMask() );
+    offCam->setClearColor( cam->getClearColor() );
+    offCam->setClearDepth( cam->getClearDepth() );
+    offCam->setClearStencil( cam->getClearStencil() );
+    offCam->setComputeNearFarMode( cam->getComputeNearFarMode() );
+    offCam->setRenderOrder( osg::Camera::NESTED_RENDER );
+    offCam->setRenderOrder( cam->getRenderOrder(), cam->getRenderOrderNum() );
+    offCam->setRenderTargetImplementation( osg::Camera::FRAME_BUFFER_OBJECT );
+    offCam->attach( osg::Camera::COLOR_BUFFER0, colorImg.get() );
+    offCam->attach( osg::Camera::DEPTH_BUFFER, GL_DEPTH_COMPONENT24 );
+    offCam->setDrawBuffer( GL_COLOR_ATTACHMENT0 );
+    offCam->setReadBuffer( GL_COLOR_ATTACHMENT0 );
+    if ( cam->getStateSet() )
+        offCam->setStateSet( cam->getStateSet() );
+
+    // Keep depth testing explicit and avoid face culling artifacts in offscreen path.
+    offCam->getOrCreateStateSet()->setAttributeAndModes(new osg::Depth,
+						osg::StateAttribute::ON );
+    offCam->getOrCreateStateSet()->setMode( GL_CULL_FACE,
+					    osg::StateAttribute::OFF );
+    osg::ref_ptr<osg::Node> offScene =
+	dynamic_cast<osg::Node*>(root_->clone( osg::CopyOp::DEEP_COPY_ALL) );
+    if ( !offScene.valid() )
+    {
+        msg = "Failed to clone scene for offscreen rendering";
+        return false;
+    }
+
+    osgViewer::Viewer offViewer;
+    offViewer.setThreadingModel( osgViewer::Viewer::SingleThreaded );
+    offViewer.setLightingMode( viewer_->getLightingMode() );
+    offViewer.setCamera( offCam.get() );
+    offViewer.setSceneData( offScene.get() );
+    offViewer.realize();
+    offViewer.frame();
+    offViewer.frame();
+    offGc->releaseContext();
+
+    QImage img;
+    if ( colorImg.valid() && colorImg->data() )
+    {
+        img = QImage( colorImg->data(), targetW, targetH,
+		      QImage::Format_RGBA8888).flipped( Qt::Vertical );
+    }
+
+    const QString outpath( destpath );
+    if ( !img.save(outpath) )
+    {
+        msg = "Failed to save screenshot to " + outpath.toStdString();
+	return false;
+    }
+
+    msg = "Screenshot saved to '" + outpath.toStdString() + "' (" +
+           std::to_string(img.width()) + "x" + std::to_string(img.height()) + ")";
+
+    return true;
 }
 
 
 // main app
 
-int main(int argc, char** argv) {
+int main( int argc, char** argv )
+{
     // Set up compatibility OpenGL profile
     QSurfaceFormat fmt;
-    fmt.setVersion(2, 0);
-    fmt.setProfile(QSurfaceFormat::CompatibilityProfile);
-    fmt.setDepthBufferSize(24);
-    QSurfaceFormat::setDefaultFormat(fmt);
+    fmt.setVersion( 2, 0 );
+    fmt.setProfile( QSurfaceFormat::CompatibilityProfile );
+    fmt.setDepthBufferSize( 24 );
+    QSurfaceFormat::setDefaultFormat( fmt );
 
-    QApplication app(argc, argv);
+    QApplication app( argc, argv );
 
     OSGWindow window;
-    window.setWindowTitle("Minimal Qt6 + OSG 3.6.5 Embedded Example");
+    window.setWindowTitle( "Minimal Qt6 + OSG 3.6.5 Embedded Example" );
 
     auto* mdiarea = new QMdiArea;
-    window.setCentralWidget(mdiarea);
+    window.setCentralWidget( mdiarea );
 
     auto* osgwidget = new OSGWidget;
     auto* container = new QWidget;
 
-    auto* layout = new QVBoxLayout(container);
-    layout->setContentsMargins(0, 0, 0, 0);
+    auto* layout = new QVBoxLayout( container );
+    layout->setContentsMargins( 0, 0, 0, 0 );
     layout->addWidget(osgwidget);
 
-    container->setLayout(layout);
+    container->setLayout( layout );
 
     auto* subwindow = new QMdiSubWindow;
-    subwindow->setWindowTitle("3D View");
-    subwindow->setWidget(container);
-    subwindow->setAttribute(Qt::WA_DeleteOnClose);
-    mdiarea->addSubWindow(subwindow);
+    subwindow->setWindowTitle( "3D View" );
+    subwindow->setWidget( container );
+    subwindow->setAttribute( Qt::WA_DeleteOnClose );
+    mdiarea->addSubWindow( subwindow );
     subwindow->showMaximized();
 
     window.setOSGWidget( osgwidget );
