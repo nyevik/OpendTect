@@ -31,6 +31,7 @@
 #include <osg/CopyOp>
 #include <osgDB/WriteFile>
 #include <osgGA/TrackballManipulator>
+#include <osgText/Text>
 #include <osgViewer/Viewer>
 
 #include <iostream>
@@ -85,14 +86,19 @@ protected:
 private:
     osgGA::GUIEventAdapter::MouseButtonMask mapQtMouseButton(Qt::MouseButton);
     int mapQtKey(QKeyEvent*);
+    void updateLabelAlignment();
 
     osg::ref_ptr<osgViewer::Viewer> viewer_;
     osg::ref_ptr<osgViewer::GraphicsWindowEmbedded> gw_;
     osg::ref_ptr<osg::Group> root_;
+    osg::ref_ptr<osgText::Text> labeltext_;
+    osg::Vec3 cubecenter_ = osg::Vec3(0.f, 0.f, 0.f);
+    osg::Vec3 labelanchor_ = osg::Vec3(0.f, 0.f, 0.f);
     QTimer* rendertimer_	= nullptr;
     osg::Matrix lastviewmatrix_;
     int stillframecount_	= 0;
     const int maxstillframes_ = 10;
+    const int rendertimems_ = 16;
 };
 
 #include "od_osgtestapp.moc"
@@ -221,8 +227,7 @@ OSGWidget::OSGWidget( QWidget* parent )
 	    update();
     });
 
-    const int rendertimems = 16;
-    rendertimer_->start( rendertimems );
+    rendertimer_->start( rendertimems_ );
 }
 
 
@@ -258,12 +263,14 @@ void OSGWidget::initializeGL()
     camera->setClearColor( osg::Vec4(0.2f, 0.2f, 0.2f, 1.f) );
 			   // Nice neutral gray
 
-    // Build a scene with a cube and a line
+    // Build a scene with a cube, a line and a label
     root_ = new osg::Group;
     osg::ref_ptr<osg::Geode> geode = new osg::Geode;
 
-    // Cube
-    osg::ref_ptr<osg::Box> cube = new osg::Box(osg::Vec3(0.f, 0.f, 0.f), 1.f);
+    // Cube (scaled to keep label visually comparable in size)
+    const float cubeSize = 0.8f;
+    const float cubeHalf = cubeSize * 0.5f;
+    osg::ref_ptr<osg::Box> cube = new osg::Box(osg::Vec3(0.f, 0.f, 0.f), cubeSize );
     osg::ref_ptr<osg::ShapeDrawable> cubeDrawable =
 					new osg::ShapeDrawable( cube.get() );
     geode->addDrawable( cubeDrawable.get() );
@@ -272,8 +279,8 @@ void OSGWidget::initializeGL()
     osg::ref_ptr<osg::Geometry> line = new osg::Geometry;
 
     osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
-    vertices->push_back( osg::Vec3(-2.f, 0.f, 0.f) );
-    vertices->push_back( osg::Vec3(2.f, 0.f, 0.f) );
+    vertices->push_back( osg::Vec3(-1.f, 0.f, 0.f) );
+    vertices->push_back( osg::Vec3(1.f, 0.f, 0.f) );
     line->setVertexArray( vertices.get() );
     line->addPrimitiveSet( new osg::DrawArrays(GL_LINES, 0, 2) );
 
@@ -286,18 +293,45 @@ void OSGWidget::initializeGL()
     lineState->setMode( GL_LIGHTING, osg::StateAttribute::OFF );
     geode->addDrawable( line.get() );
 
+    // Label
+    osg::ref_ptr<osg::Geode> label = new osg::Geode;
+    labeltext_ = new osgText::Text;
+    cubecenter_.set( 0.f, 0.f, 0.f );
+    labelanchor_.set( cubeHalf, cubeHalf, cubeHalf + 0.02f );
+    labeltext_->setText( "Hello, OSG!" );
+    labeltext_->setFont( "Arial" );
+    labeltext_->setAxisAlignment( osgText::TextBase::SCREEN );
+    labeltext_->setCharacterSize( 0.18f );
+    labeltext_->setAlignment( osgText::TextBase::LEFT_BOTTOM );
+    // Anchor label on one cube edge, with a tiny offset.
+    labeltext_->setPosition( labelanchor_ );
+    label->addDrawable( labeltext_.get() );
+
     // Final scene setup
     root_->addChild( geode.get() );
+    root_->addChild( label.get() );
 
     viewer_->setSceneData( root_.get() );
-    viewer_->setCameraManipulator( new osgGA::TrackballManipulator() );
+    osg::ref_ptr<osgGA::TrackballManipulator> manip = new osgGA::TrackballManipulator();
+    const double distance = 4.5;
+    const double azimuthDeg = -50.0;   // Rotation around Z (yaw)
+    const double elevationDeg = 25.0;  // Tilt up from XY plane
+    const double degToRad = osg::PI / 180.0;
+    const double azimuthRad = azimuthDeg * degToRad;
+    const double elevationRad = elevationDeg * degToRad;
+    const osg::Vec3d eye( cubecenter_.x() + distance * std::cos(elevationRad) * std::cos(azimuthRad),
+			  cubecenter_.y() + distance * std::cos(elevationRad) * std::sin(azimuthRad),
+    			  cubecenter_.z() + distance * std::sin(elevationRad) );
+    manip->setHomePosition(eye, cubecenter_, osg::Vec3d(0.0, 0.0, 1.0), false);
+    viewer_->setCameraManipulator( manip.get() );
+    manip->home(0.0);
 }
 
 
 static bool matricesAreClose( const osg::Matrix& m1, const osg::Matrix& m2,
 			      double epsilon = 0.0001 )
 {
-    for (int i = 0; i < 16; ++i)
+    for ( int i = 0; i < 16; i++ ) 
     {
 	if ( std::abs(m1.ptr()[i] - m2.ptr()[i]) > epsilon )
 	    return false;
@@ -312,6 +346,7 @@ void OSGWidget::paintGL()
     if ( !viewer_.valid() )
 	    return;
 
+    updateLabelAlignment();
     viewer_->frame();
     const osg::Matrix currentviewmatrix =
 				viewer_->getCameraManipulator()->getMatrix();
@@ -326,8 +361,30 @@ void OSGWidget::paintGL()
 	stillframecount_ = 0;
 	lastviewmatrix_ = currentviewmatrix;
 	if ( !rendertimer_->isActive() )
-	    rendertimer_->start( 16 );
+	    rendertimer_->start( rendertimems_ );
     }
+}
+
+
+void OSGWidget::updateLabelAlignment()
+{
+    if ( !viewer_.valid() || !labeltext_.valid() )
+	return;
+
+    osg::Camera* cam = viewer_->getCamera();
+    osg::Viewport* vp = cam ? cam->getViewport() : nullptr;
+    if ( !cam || !vp )
+	return;
+
+    const osg::Matrix mvpw = cam->getViewMatrix() *
+                             cam->getProjectionMatrix() *
+                             vp->computeWindowMatrix();
+    const osg::Vec3 centerWin = cubecenter_ * mvpw;
+    const osg::Vec3 anchorWin = labelanchor_ * mvpw;
+
+    labeltext_->setAlignment( anchorWin.x() >= centerWin.x()
+                              ? osgText::TextBase::LEFT_BOTTOM
+                              : osgText::TextBase::RIGHT_BOTTOM );
 }
 
 
@@ -375,15 +432,16 @@ void OSGWidget::mouseReleaseEvent( QMouseEvent* event )
 						  mapQtMouseButton( qtbut );
     gw_->getEventQueue()->mouseButtonRelease( pos.x(), pos.y(), osgbut );
     if ( !rendertimer_->isActive() )
-	rendertimer_->start(16);
+	rendertimer_->start( rendertimems_ );
 }
 
 
-void OSGWidget::mouseMoveEvent(QMouseEvent* event) {
+void OSGWidget::mouseMoveEvent( QMouseEvent* event )
+{
     const QPointF pos = event->position();
-    gw_->getEventQueue()->mouseMotion(pos.x(), pos.y());
+    gw_->getEventQueue()->mouseMotion( pos.x(), pos.y() );
     if ( !rendertimer_->isActive() )
-	rendertimer_->start(16);
+	rendertimer_->start( rendertimems_ );
 }
 
 
@@ -416,7 +474,7 @@ void OSGWidget::keyReleaseEvent(QKeyEvent* event)
 osgGA::GUIEventAdapter::MouseButtonMask
     OSGWidget::mapQtMouseButton(Qt::MouseButton button)
 {
-    switch (button)
+    switch ( button )
     {
 	case Qt::LeftButton: return osgGA::GUIEventAdapter::LEFT_MOUSE_BUTTON;
 	case Qt::MiddleButton:
