@@ -159,6 +159,13 @@ void PickSetDisplay::locChg( CallBacker* cb )
 }
 
 
+void PickSetDisplay::setChg( CallBacker* cb )
+{
+    LocationDisplay::setChg( cb );
+    setBodyDisplay();
+}
+
+
 void PickSetDisplay::dispChg( CallBacker* cb )
 {
     if ( !markerset_ )
