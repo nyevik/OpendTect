@@ -1,6 +1,10 @@
 #include <QAction>
 #include <QApplication>
 #include <QFileDialog>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QKeyEvent>
 #include <QMainWindow>
 #include <QMdiArea>
@@ -29,6 +33,7 @@
 #include <osg/Depth>
 #include <osg/ShapeDrawable>
 #include <osg/CopyOp>
+#include <osgDB/ReadFile>
 #include <osgDB/WriteFile>
 #include <osgGA/TrackballManipulator>
 #include <osgText/Text>
@@ -68,6 +73,8 @@ public:
     OSGWidget(QWidget* parent=nullptr);
     ~OSGWidget();
 
+    bool loadScene(const char* srcpath,std::string& msg);
+    bool saveScene(const char* destpath,std::string& msg) const;
     bool doScreenShot(const QSize& dpi,double scalefactor,const char* destpath,
                       std::string& msg) const;
 
@@ -159,24 +166,49 @@ QSize OSGWindow::currentScreenDPI() const
 
 void OSGWindow::onOpen()
 {
-    const QString path = QFileDialog::getOpenFileName( this, "Open File" );
-    if ( !path.isEmpty() )
+    if ( !osgwidget_ )
     {
-	QMessageBox::information( this, "File Opened",
-				  "You selected:\n" + path );
-	// TODO: load file into OSGWidget
+        QMessageBox::critical( this, "Error", "No viewer available" );
+        return;
     }
+
+    const QString path = QFileDialog::getOpenFileName(
+        this, "Open Scene", QString(), "OSG Scene (*.osgb *.osgt)" );
+    if ( path.isEmpty() )
+        return;
+
+    std::string msg;
+    if ( !osgwidget_->loadScene(path.toStdString().c_str(),msg) )
+    {
+        QMessageBox::critical( this, "Error", msg.c_str() );
+        return;
+    }
+
+    QMessageBox::information( this, "Open Scene", msg.c_str() );
 }
 
 
 void OSGWindow::onSave()
 {
-    const QString path = QFileDialog::getSaveFileName( this, "Save File" );
-    if (!path.isEmpty())
+    if ( !osgwidget_ )
     {
-	QMessageBox::information( this, "File Saved", "Saved to:\n" + path );
-	// TODO: save OSG scene
+        QMessageBox::critical( this, "Error", "No viewer available" );
+        return;
     }
+
+    const QString path = QFileDialog::getSaveFileName(
+        this, "Save Scene", QString(), "OSG Scene (*.osgb *.osgt)" );
+    if ( path.isEmpty() )
+        return;
+
+    std::string msg;
+    if ( !osgwidget_->saveScene(path.toStdString().c_str(),msg) )
+    {
+        QMessageBox::critical( this, "Error", msg.c_str() );
+        return;
+    }
+
+    QMessageBox::information( this, "Save Scene", msg.c_str() );
 }
 
 
@@ -236,6 +268,130 @@ OSGWidget::~OSGWidget()
     auto* osgwin = dynamic_cast<OSGWindow*>( QApplication::activeWindow() );
     if ( osgwin )
 	osgwin->setOSGWidget( nullptr );
+}
+
+
+bool OSGWidget::saveScene( const char* destpath, std::string& msg ) const
+{
+    if ( !root_.valid() )
+    {
+        msg = "Error: Scene is not initialized";
+        return false;
+    }
+
+    if ( !destpath || !*destpath )
+    {
+        msg = "Error: Invalid destination path";
+        return false;
+    }
+
+    if ( !osgDB::writeNodeFile(*root_,destpath) )
+    {
+        msg = std::string("Failed to save scene to ") + destpath;
+        return false;
+    }
+
+    QString infomsg = QString("Scene saved to %1").arg(destpath);
+    if ( viewer_.valid() && viewer_->getCamera() )
+    {
+        const osg::Matrixd vm = viewer_->getCamera()->getViewMatrix();
+        QJsonArray mtx;
+        for ( int i=0; i<16; i++ )
+            mtx.append( vm.ptr()[i] );
+
+        QJsonObject obj;
+        obj["version"] = 1;
+        obj["view_matrix"] = mtx;
+
+        const QString camPath = QString(destpath) + ".camera.json";
+        QFile camFile( camPath );
+        if ( camFile.open(QIODevice::WriteOnly|QIODevice::Truncate) )
+        {
+            camFile.write( QJsonDocument(obj).toJson(QJsonDocument::Indented) );
+            camFile.close();
+        }
+        else
+        {
+            infomsg += QString("\nWarning: failed to write camera state: %1")
+                       .arg(camPath);
+        }
+    }
+
+    msg = infomsg.toStdString();
+    return true;
+}
+
+
+bool OSGWidget::loadScene( const char* srcpath, std::string& msg )
+{
+    if ( !viewer_.valid() )
+    {
+        msg = "Error: Viewer is not initialized";
+        return false;
+    }
+
+    if ( !srcpath || !*srcpath )
+    {
+        msg = "Error: Invalid source path";
+        return false;
+    }
+
+    osg::ref_ptr<osg::Node> loaded = osgDB::readNodeFile(srcpath);
+    if ( !loaded.valid() )
+    {
+        msg = std::string("Failed to load scene from ") + srcpath;
+        return false;
+    }
+
+    osg::ref_ptr<osg::Group> newRoot = new osg::Group;
+    newRoot->addChild( loaded.get() );
+    root_ = newRoot.get();
+    viewer_->setSceneData( root_.get() );
+
+    // The test label is scene-specific; detach from runtime updates after loading.
+    labeltext_ = nullptr;
+    cubecenter_.set( 0.f, 0.f, 0.f );
+    labelanchor_.set( 0.f, 0.f, 0.f );
+
+    if ( !rendertimer_->isActive() )
+        rendertimer_->start( rendertimems_ );
+
+    update();
+
+    QString infomsg = QString("Scene loaded from %1").arg(srcpath);
+    const QString camPath = QString(srcpath) + ".camera.json";
+    QFile camFile( camPath );
+    if ( camFile.open(QIODevice::ReadOnly) )
+    {
+        const QJsonDocument doc = QJsonDocument::fromJson( camFile.readAll() );
+        camFile.close();
+        if ( doc.isObject() )
+        {
+            const QJsonArray mtx = doc.object().value("view_matrix").toArray();
+            if ( mtx.size() == 16 )
+            {
+                osg::Matrixd vm;
+                for ( int i=0; i<16; i++ )
+                    vm.ptr()[i] = mtx.at(i).toDouble();
+
+                if ( auto* manip = viewer_->getCameraManipulator() )
+                    manip->setByInverseMatrix( vm );
+                else if ( viewer_->getCamera() )
+                    viewer_->getCamera()->setViewMatrix( vm );
+            }
+            else
+            {
+                infomsg += "\nWarning: invalid camera sidecar format";
+            }
+        }
+        else
+        {
+            infomsg += "\nWarning: invalid camera sidecar JSON";
+        }
+    }
+
+    msg = infomsg.toStdString();
+    return true;
 }
 
 
