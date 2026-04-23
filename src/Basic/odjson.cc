@@ -1271,6 +1271,20 @@ bool OD::JSON::Array::get( DBKeySet& keys ) const
 }
 
 
+bool OD::JSON::Array::get( TypeSet<FilePath>& fps ) const
+{
+    BufferStringSet strs;
+    if ( !get(strs) )
+	return false;
+
+    fps.setEmpty();
+    for ( const auto* str : strs )
+	fps += FilePath( str->buf() );
+
+    return true;
+}
+
+
 bool OD::JSON::Array::get( BoolTypeSet& arr ) const
 {
     if ( !isData() && !isMixed() )
@@ -1557,6 +1571,19 @@ OD::JSON::Array& OD::JSON::Array::set( const BoolTypeSet& vals )
 }
 
 
+OD::JSON::Array& OD::JSON::Array::set( const TypeSet<FilePath>& fps )
+{
+    BufferStringSet fpstrs;
+    for ( const auto& fp : fps )
+    {
+	const BufferString fnm = getPathStr( fp );
+	fpstrs.add( fnm.buf() );
+    }
+
+    return set( fpstrs );
+}
+
+
 OD::JSON::Array& OD::JSON::Array::set( const bool* vals, size_type sz )
 {
     return setVals( vals, sz );
@@ -1620,6 +1647,24 @@ mDefArraySetAddVals( od_uint32 )
 mDefArraySetAddVals( od_int64 )
 mDefArraySetAddVals( float )
 mDefArraySetAddVals( double )
+
+
+OD::JSON::Array& OD::JSON::Array::set( const FilePath& fp, size_type idx )
+{
+    if ( !validIdx(idx) )
+	return *this;
+
+    if ( isData() && !isMixed() )
+	valArr().setFilePath( fp, idx );
+    else
+    {
+	const BufferString fnm = getPathStr( fp );
+	auto* newval = new Value( fnm.str() );
+	delete values_.replace( idx, newval );
+    }
+
+    return *this;
+}
 
 
 OD::JSON::Array& OD::JSON::Array::add( const char* str )

@@ -274,6 +274,7 @@ public:
     bool		get(uiStringSet&) const;
     bool		get(TypeSet<MultiID>&) const;
     bool		get(DBKeySet&) const;
+    bool		get(TypeSet<FilePath>&) const;
     mFloatIntegralNoBoolTemplate(T)
     bool		get(TypeSet<T>&) const;
     bool		get(BoolTypeSet&) const;
@@ -284,8 +285,8 @@ public:
     Array&		set(const TypeSet<MultiID>&);
     Array&		set(const DBKeySet&);
     Array&		set(const BoolTypeSet&);
+    Array&		set(const TypeSet<FilePath>&);
     Array&		set(const bool*,size_type);
-    Array&		add(bool);
 
 #   define		mDeclJSONArraySetAddFns( typ ) \
     Array&		set(const TypeSet<typ>&); \
@@ -303,6 +304,8 @@ public:
 			mDeclJSONArraySetAddFns(float);
 			mDeclJSONArraySetAddFns(double);
 
+    Array&		set(const FilePath&,size_type);
+    Array&		add(bool);
     Array&		add(Coord);
     Array&		add(Coord3);
     Array&		add(const TypeSet<Coord>&);
