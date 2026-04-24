@@ -87,9 +87,10 @@ protected:
 
     void			selChg(CallBacker*);
     void			listUpdatedCB(CallBacker*);
-    virtual void		initDlg()		{}
-    virtual void		checkAllEntriesOK()	{}
-    virtual void		ownSelChg()		{}
+    virtual void		initDlg()			{}
+    virtual void		updateRemoteLinkEntryStatus()	{}
+    virtual void		checkAllEntriesOK()		{}
+    virtual void		ownSelChg()			{}
     void			updateCB(CallBacker*);
-    virtual void		updateList()		{}
+    virtual void		updateList()			{}
 };

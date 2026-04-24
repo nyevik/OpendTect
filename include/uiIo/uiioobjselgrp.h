@@ -158,7 +158,7 @@ public:
     void		setCurrent(const MultiID&);
     void		setChosen(int,bool yn=true);
     void		setChosen(const TypeSet<MultiID>&);
-    void		setIsBad(int);
+    void		setIsBad(int,bool yn=true);
     bool		isEntryOK(const MultiID&) const;
     void		chooseAll(bool yn=true);
     const TypeSet<MultiID>&	getIOObjIds() const;

@@ -740,12 +740,15 @@ void uiIOObjSelGrp::setCurrent( int curidx )
 }
 
 
-void uiIOObjSelGrp::setIsBad( int idx )
+void uiIOObjSelGrp::setIsBad( int idx, bool isbad )
 {
     if ( !listfld_->validIdx(idx) )
 	return;
 
-    listfld_->setColor( idx, sNotOKColor );
+    if ( isbad )
+	listfld_->setColor( idx, sNotOKColor );
+    else
+	listfld_->setDefaultColor( idx );
 }
 
 

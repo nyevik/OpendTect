@@ -70,5 +70,6 @@ protected:
     void		getBasicFileInfo(BufferString&) const override;
     void		setToolButtonProperties();
     const BrowserDef*	getBrowserDef() const;
+    void		updateRemoteLinkEntryStatus() override;
 
 };

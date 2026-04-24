@@ -245,6 +245,7 @@ void uiObjFileMan::selChg( CallBacker* )
     curimplexists_ = curioobj_ && curioobj_->implExists(true);
 
     ownSelChg();
+    updateRemoteLinkEntryStatus();
     if ( curioobj_ )
 	mkFileInfo();
     else
