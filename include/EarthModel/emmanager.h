@@ -103,6 +103,7 @@ protected:
     ObjectSet<EMObject>		objects_;
 
     void		levelToBeRemoved(CallBacker*);
+    void		cleanSurveyZUnits(CallBacker*);
     static const char*	displayparameterstr();
 
     bool		readParsFromDisplayInfoFile(const MultiID&,

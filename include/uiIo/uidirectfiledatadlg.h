@@ -15,7 +15,7 @@ ________________________________________________________________________
 #include "uidialog.h"
 
 class IOObj;
-class uiFileInput;
+class uiFileSel;
 
 /*!\brief UI for manipulating fille names/paths for a SEGYDirect data-store */
 
@@ -35,7 +35,7 @@ protected:
     bool		isusable_;
     BufferStringSet	filenames_;
 
-    uiFileInput*	selfld_				= nullptr;
+    uiFileSel*		selfld_				= nullptr;
 
 private:
 

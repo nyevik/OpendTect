@@ -24,6 +24,7 @@ ________________________________________________________________________
 #include "emsurfaceauxdata.h"
 #include "ioman.h"
 #include "uistrings.h"
+#include "unitofmeasure.h"
 #include "survgeom.h"
 #include "survgeom2d.h"
 #include "survinfo.h"
@@ -107,14 +108,13 @@ bool SurfaceT2DTransformer::addVolumeOfInterest( const TrcKeyZSampling& tkzsext,
 {
     const ZDomain::Info& fromzinfo = zatf_.fromZDomainInfo();
     const ZDomain::Info& tozinfo = zatf_.toZDomainInfo();
-    if ( !zinfo.isCompatibleWith(fromzinfo) &&
-	 !zinfo.isCompatibleWith(tozinfo) )
+    if ( fromzinfo.def_ != zinfo.def_ && tozinfo.def_ != zinfo.def_ )
     {
 	errmsg_ = tr("Incompatible ZDomains");
 	return false;
     }
 
-    const bool fromzdomain = zinfo.isCompatibleWith( fromzinfo );
+    const bool fromzdomain = zinfo.def_ == fromzinfo.def_ ;
     TrcKeyZSampling tkzs( tkzsext );
     tkzs.zsamp_ = zatf_.getZInterval( fromzdomain );
     if ( fromzdomain && mIsUdf(tkzsext.zsamp_.stop_) )
@@ -641,6 +641,9 @@ bool FaultT2DTransformer::doFault( const SurfaceT2DTransfData& data )
     if ( zatf_.needsVolumeOfInterest() && !addVolumeOfInterest(tkzs,info) )
 	return false;
 
+    const auto* fltuom = flt->zUnit();
+    const auto* zatfinpuom = UnitOfMeasure::zUnit( zatf_.fromZDomainInfo() );
+
     int stickidx = 0;
     for ( int idx=0; idx<nrsticks; idx++ )
     {
@@ -655,6 +658,7 @@ bool FaultT2DTransformer::doFault( const SurfaceT2DTransfData& data )
 	for ( int crdidx=0; crdidx<sz; crdidx++ )
 	{
 	    Coord3 outcrd( stick->getCoordAtIndex(crdidx) );
+	    convValue( outcrd.z_, fltuom, zatfinpuom );
             outcrd.z_ = zatf_.transformTrc( stick->locs_[crdidx].trcKey(),
                                             outcrd.z_ );
 	    if ( mIsUdf(outcrd.z_) )
@@ -770,6 +774,11 @@ bool FaultSetT2DTransformer::doFaultSet( const SurfaceT2DTransfData& data )
 	RefMan<EM::EMObject> fltemobj = em.createTempObject(
 						    EM::Fault3D::typeStr() );
 	mDynamicCastGet(EM::Fault3D*,outfault3d,fltemobj.ptr());
+
+	const auto* fltuom = flt->zUnit();
+	const auto* zatfinpuom =
+		    UnitOfMeasure::zUnit( zatf_.fromZDomainInfo() );
+
 	int stickidx = 0;
 	for ( int idx=0; idx<nrsticks; idx++ )
 	{
@@ -784,6 +793,7 @@ bool FaultSetT2DTransformer::doFaultSet( const SurfaceT2DTransfData& data )
 	    for ( int crdidx=0; crdidx<sz; crdidx++ )
 	    {
 		Coord3 outcrd( stick->getCoordAtIndex(crdidx) );
+		convValue( outcrd.z_, fltuom, zatfinpuom );
                 outcrd.z_ = zatf_.transformTrc( stick->locs_[crdidx].trcKey(),
                                                 outcrd.z_ );
 		if ( mIsUdf(outcrd.z_) )
@@ -863,7 +873,8 @@ StringView FaultStickSetT2DTransformer::getTypeString() const
 
 bool FaultStickSetT2DTransformer::doTransformation(
 		const Geometry::FaultStick* stick, int sticknr,
-		EM::FaultStickSet& outfault3d, const Pos::GeomID& geomid )
+		EM::FaultStickSet& outfault3d, const Pos::GeomID& geomid,
+		const UnitOfMeasure* fssuom)
 {
     if ( !stick || stick->locs_.isEmpty() )
 	return false;
@@ -872,9 +883,13 @@ bool FaultStickSetT2DTransformer::doTransformation(
     const Coord3& editnormal = stick->getNormal();
     bool stickinserted = false;
     int colidx=1;
+
+    const auto* zatfinpuom = UnitOfMeasure::zUnit( zatf_.fromZDomainInfo() );
+
     for ( int crdidx = 0; crdidx<sz; crdidx++ )
     {
 	Coord3 outcrd( stick->getCoordAtIndex(crdidx) );
+	convValue( outcrd.z_, fssuom, zatfinpuom );
         outcrd.z_ = zatf_.transformTrc( stick->locs_[crdidx].trcKey(),
                                         outcrd.z_ );
 	if ( !stickinserted )
@@ -911,6 +926,9 @@ bool FaultStickSetT2DTransformer::handle2DTransformation(
 {
     TypeSet<Pos::GeomID> geomids;
     fssgeom.getPickedGeomIDs( geomids );
+
+    const auto* fssuom = UnitOfMeasure::zUnit( zinfo );
+
     for ( const auto& geomid : geomids )
     {
 	TrcKeyZSampling tkzs( geomid );
@@ -923,8 +941,9 @@ bool FaultStickSetT2DTransformer::handle2DTransformation(
 	fssgeom.getStickNrsForGeomID( geomid, sticknrs );
 	for ( const auto& sticknr : sticknrs )
 	{
-	    doTransformation( fssgeom.geometryElement()->getStick(sticknr,
-					true), sticknr, outfss, geomid );
+	    doTransformation(
+		fssgeom.geometryElement()->getStick(sticknr, true),
+		sticknr, outfss, geomid, fssuom );
 	}
 
 	if ( zatf_.needsVolumeOfInterest() )
@@ -955,6 +974,9 @@ bool FaultStickSetT2DTransformer::handle3DTransformation(
     const int nrsticks = fssgeom.nrSticks();
     TypeSet<Pos::GeomID> geomids;
     fssgeom.getPickedGeomIDs( geomids );
+
+    const auto* fssuom = UnitOfMeasure::zUnit( zinfo );
+
     for ( const auto& geomid : geomids )
     {
 	TrcKeyZSampling tkzs( geomid );
@@ -967,7 +989,7 @@ bool FaultStickSetT2DTransformer::handle3DTransformation(
 	for ( int idx=0; idx<nrsticks; idx++ )
 	{
 	    const Geometry::FaultStick* stick = fss->getStick( idx );
-	    doTransformation( stick, idx, outfss );
+	    doTransformation( stick, idx, outfss, Pos::GeomID::udf(), fssuom );
 	}
 
 	if ( zatf_.needsVolumeOfInterest() )

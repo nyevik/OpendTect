@@ -70,7 +70,6 @@ protected:
     virtual void		doLocateCB(CallBacker*)		    {}
     void			readNotes();
     void			setInfo(const char* txt);
-    void			setPrefWidth(int width); //!< width in char
     void			createDefaultUI(bool needreloc=false,
 						bool needremove=true,
 						bool multisel=true);
@@ -88,9 +87,10 @@ protected:
 
     void			selChg(CallBacker*);
     void			listUpdatedCB(CallBacker*);
-    virtual void		initDlg()		{}
-    virtual void		checkAllEntriesOK()	{}
-    virtual void		ownSelChg()		{}
+    virtual void		initDlg()			{}
+    virtual void		updateRemoteLinkEntryStatus()	{}
+    virtual void		checkAllEntriesOK()		{}
+    virtual void		ownSelChg()			{}
     void			updateCB(CallBacker*);
-    virtual void		updateList()		{}
+    virtual void		updateList()			{}
 };

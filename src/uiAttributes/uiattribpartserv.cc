@@ -82,7 +82,8 @@ int uiAttribPartServer::objNLAModel3D()		{ return 101; }
 
 const char* uiAttribPartServer::attridstr()	{ return "Attrib ID"; }
 
-static const int cMaxMenuSize = 150;
+static const int cMaxMenuSize			= 150;
+static constexpr od_int64 cVolumeThreshold	= 100000000LL;
 
 const char* uiAttribPartServer::sKeyUserSettingAttrErrMsg()
 { return "dTect.Display attribute positioning error messages"; }
@@ -933,8 +934,10 @@ RefMan<RegularSeisDataPack> uiAttribPartServer::createOutputRM(
     Settings::common().getYN( SettingsAccess::sKeyShowZProgress(),
 			      showzprogress );
 
+    const bool showvolprogress = true; //to support adding a user-setting like z
     const Desc* targetdesc = getTargetDesc( targetspecs_ );
     ConstRefMan<RegularSeisDataPack> preloadeddatapack;
+    bool aborted = false;
     if ( targetdesc )
     {
 	if ( targetdesc->isStored() && !isnla )
@@ -961,8 +964,11 @@ RefMan<RegularSeisDataPack> uiAttribPartServer::createOutputRM(
 		    if ( getCompNrsForStoredTarget(targetspecs_,selcomps) )
 		    {
 			uiTaskRunner uitaskr( parent() );
-			TaskRunner* taskr = (isz && showzprogress) ? &uitaskr
-								   : nullptr;
+			const bool islargevolume
+			    = !tkzs.isFlat() && tkzs.totalNr()>cVolumeThreshold;
+			const bool needsuitr = ( isz && showzprogress) ||
+					  ( islargevolume && showvolprogress );
+			TaskRunner* taskr = needsuitr ? &uitaskr : nullptr;
 
 			// Very fast for few translators
 			SeisTrcReader trcrdr( *ioobj.ptr() );
@@ -974,6 +980,9 @@ RefMan<RegularSeisDataPack> uiAttribPartServer::createOutputRM(
 			//if ( trcrdr.getDataPack(*sdp,selcomps,taskr) )
 			if ( trcrdr.getDataPack(*sdp,taskr) )
 			    return sdp;
+			else if ( taskr &&
+				  uitaskr.uiResult()==uiDialog::Rejected )
+			    aborted = true;
 
 			sdp = nullptr;
 			// Somewhat fast, but for all formats
@@ -985,6 +994,8 @@ RefMan<RegularSeisDataPack> uiAttribPartServer::createOutputRM(
 			    if ( sdp )
 				return sdp;
 			}
+			else if ( uitaskr.uiResult()==uiDialog::Rejected )
+			    aborted = true;
 		    }
 		}
 	    }
@@ -1010,7 +1021,7 @@ RefMan<RegularSeisDataPack> uiAttribPartServer::createOutputRM(
 	}
     }
 
-    bool success = true;
+    bool success = false;
     PtrMan<Processor> process;
     RefMan<RegularSeisDataPack> output;
     //note: 1 attrib computed at a time
@@ -1059,7 +1070,7 @@ RefMan<RegularSeisDataPack> uiAttribPartServer::createOutputRM(
 	    {
 		ValueSeries<float>* arr3dvs = output->data(0).getStorage();
 		ValueSeriesGetAll<float> copier( avs, *arr3dvs, vals.size() );
-		copier.execute();
+		success = copier.execute();
 	    }
 	}
     }
@@ -1128,8 +1139,10 @@ RefMan<RegularSeisDataPack> uiAttribPartServer::createOutputRM(
 		    // ToDo: use this message as a tree tooltip
 		    return nullptr;
 		}
+
+		success = true;
 	    }
-	    else
+	    else if ( !aborted )
 	    {
 		uiTaskRunner taskrunner( parent() );
 		taskrunner.displayMsgOnError( false );

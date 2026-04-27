@@ -1873,7 +1873,7 @@ void HorizonDisplay::drawHorizonOnZSlice( const TrcKeyZSampling& tkzs,
 	return;
 
     ConstPtrMan<Array2D<float> > myfield;
-    if ( !isAlreadyTransformed() )
+    if ( zaxistransform_ && !isAlreadyTransformed() )
 	myfield = field = horizon->createArray2D( zaxistransform_.ptr() );
 
     IsoContourTracer ictracer( *field );

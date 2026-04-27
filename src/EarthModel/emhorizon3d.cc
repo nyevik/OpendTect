@@ -579,9 +579,14 @@ Array2D<float>* Horizon3D::createArray2D(
 {
     const Geometry::BinIDSurface* geom = geometry_.geometryElement();
     if ( !geom || geom->isEmpty() )
-	return 0;
+	return nullptr;
 
-    Array2DImpl<float>* arr = 0;
+    const auto* emuom = zUnit();
+    const UnitOfMeasure* zatfinpuom = emuom;
+    if ( zaxistransform )
+	zatfinpuom = UnitOfMeasure::zUnit( zaxistransform->fromZDomainInfo() );
+
+    Array2DImpl<float>* arr = nullptr;
     if ( zaxistransform || !geom->getArray() )
     {
 	const StepInterval<int> rowrg = geom->rowRange();
@@ -595,10 +600,11 @@ Array2D<float>* Horizon3D::createArray2D(
 		for ( int col=colrg.start_; col<=colrg.stop_; col+=colrg.step_ )
 		{
 		    const BinID bid( row, col );
-		    const Coord3 pos = geom->getKnot( bid, false );
+		    Coord3 pos = geom->getKnot( bid, false );
 		    if ( pos.isDefined() )
 		    {
 			const TrcKey tk( bid );
+			convValue( pos.z_, emuom, zatfinpuom );
 			const float zval =
 				zaxistransform->transformTrc( tk, pos.z_ );
 			arr->set( rowrg.getIndex(row),

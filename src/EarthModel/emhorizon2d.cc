@@ -720,6 +720,11 @@ Array1D<float>* Horizon2D::createArray1D( const Pos::GeomID& geomid,
     if ( !geom || geom->isEmpty() )
 	return nullptr;
 
+    const UnitOfMeasure* emuom = zUnit();
+    const UnitOfMeasure* zatfinpuom = emuom;
+    if ( trans )
+	zatfinpuom = UnitOfMeasure::zUnit( trans->fromZDomainInfo() );
+
     Array1DImpl<float>* arr = nullptr;
     const int lineidx = geom->getRowIndex( geomid );
     if ( lineidx < 0 )
@@ -738,7 +743,10 @@ Array1D<float>* Horizon2D::createArray1D( const Pos::GeomID& geomid,
 	Coord3 pos = geom->getKnot( RowCol(lineidx,col) );
         float val = (float)pos.z_;
 	if ( trans )
-	    val = trans->transformTrc( TrcKey(geomid,col), val );
+	{
+	    convValue( val, emuom, zatfinpuom );
+	    val = trans->transformTrc( TrcKey( geomid, col ), val );
+	}
 
 	arr->set( colrg.getIndex(col), val );
     }

@@ -72,6 +72,7 @@ public:
 
     bool			editDisplayProperties(const MultiID&,OD::Color);
     void			displayIn2DViewer(const MultiID&);
+    bool			displayWellsIn3D(const TypeSet<MultiID>&);
 
     bool			dispLineOnCreation(){ return disponcreation_; }
     MultiID			getRandLineMultiID()   { return multiid_; }
@@ -87,6 +88,7 @@ public:
 
     void			createSimpleWells()	{ simpImp(0); }
     const TypeSet<MultiID>&	createdWellIDs()	{ return crwellids_; }
+    const TypeSet<MultiID>&	displayWellIDs()	{ return dispwellids_; }
 
     void			doLogTools();
 
@@ -122,6 +124,7 @@ protected:
     TypeSet<VisID>		previewids_;
 
     TypeSet<MultiID>		crwellids_; // for uiSimpleMultiWellCreate
+    TypeSet<MultiID>		dispwellids_; // wells to display in 3D
 
     bool			disponcreation_;
     MultiID			multiid_;

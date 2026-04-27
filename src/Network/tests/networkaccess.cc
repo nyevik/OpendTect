@@ -74,12 +74,12 @@ bool testPing()
 bool testDownloadToString()
 {
     const char* url = "https://opendtect.org/dlsites.txt";
-    BufferString bs;
-    const uiRetVal uirv = Network::downloadToString( url, bs );
-    mRunStandardTestWithError( uirv.isOK(),
-	BufferString(prefix_, "Download to string"), uirv.getText() );
+    BufferString str;
+    uiString errmsg;
+    mRunStandardTestWithError( Network::getContent( url, str, &errmsg ),
+	BufferString(prefix_, "Download to string"), errmsg.getString() );
 
-    mRunStandardTest( bs.size()==54,
+    mRunStandardTest( str.size()==54,
 	      BufferString(prefix_, "Download to string size") );
 
     return true;

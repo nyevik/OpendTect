@@ -47,7 +47,6 @@ uiSeisWvltMan::uiSeisWvltMan( uiParent* p )
 			.modal(false),WaveletTranslatorGroup::ioContext())
 {
     createDefaultUI();
-    setPrefWidth( 50 );
 
     uiIOObjManipGroup* manipgrp = selgrp_->getManipGroup();
     copybut_ = manipgrp->addButton( "copyobj",

@@ -256,7 +256,13 @@ void uiFileInput::doSelect( CallBacker* )
     if ( !fnames.isEmpty() )
     {
 	const FilePath fp( fnames.first()->buf() );
-	fname = fp.pathOnly();
+	if ( selmode_ == uiFileDialog::ExistingFiles )
+	{
+	    fname = fp.pathOnly();
+	    //TODO uiFileDialog should allow providing the entire set fnames
+	}
+	else
+	    fname = fp.fullPath();
     }
 
     if ( fname.isEmpty() )
@@ -287,6 +293,7 @@ void uiFileInput::doSelect( CallBacker* )
 	if ( selmodset_ )
 	    dlg->setMode( selmode_ );
     }
+
     dlg->setConfirmOverwrite( confirmoverwrite_ );
 
     if ( !dlg->go() )

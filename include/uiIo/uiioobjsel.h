@@ -46,6 +46,7 @@ public:
 	mDefSetupMemb(bool,confirmoverwr) //!< true
 	mDefSetupMemb(bool,withinserters) //!< true, only if forread
 	mDefSetupMemb(bool,withwriteopts) //!< true, only if !forread
+	mDefSetupMemb(bool,autoupdate)	  //!< false, only if forread
 	mDefSetupMemb(bool,filldef)	  /*!< true, only if forread and
 							     !ctio.ioobj */
 	mDefSetupMemb(BufferString,withctxtfilter);  //!< empty (no filter)
@@ -116,6 +117,13 @@ protected:
     void		survChangedCB(CallBacker*);
     void		optCheckCB(CallBacker*);
     void		initRead();
+
+    void		entryAddedCB(CallBacker*);
+    void		entriesAddedCB(CallBacker*);
+    void		entryRemovedCB(CallBacker*);
+    void		entriesRemovedCB(CallBacker*);
+    void		entryChangedCB(CallBacker*);
+    void		checkEntryAndUpdateList(const MultiID&,bool newentry);
 
     const char*		userNameFromKey(const char*) const override;
     void		objSel() override;

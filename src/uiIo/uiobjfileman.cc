@@ -31,7 +31,6 @@ ________________________________________________________________________
 #include "systeminfo.h"
 
 static const int cPrefHeight = 10;
-static const int cPrefWidth = 75;
 
 uiObjFileMan::uiObjFileMan( uiParent* p, const uiDialog::Setup& s,
 			    const IOObjContext& ctxt,
@@ -61,8 +60,7 @@ void uiObjFileMan::createDefaultUI( bool withreloc, bool withrm, bool multisel )
     IOM().to( ctxt_.getSelKey(), true );
     uiIOObjSelGrp::Setup sgsu( multisel ? OD::ChooseAtLeastOne
 					: OD::ChooseOnlyOne );
-    sgsu.allowreloc( withreloc ).allowremove( withrm )
-	.allowsetdefault( true ).resizelbwidth( false );
+    sgsu.allowreloc( withreloc ).allowremove( withrm ).allowsetdefault( true );
     sgsu.withctxtfilter_.add( ctxtfilter_ );
 
     selgrp_ = new uiIOObjSelGrp( listgrp_, ctxt_, uiString::empty(), sgsu );
@@ -104,8 +102,6 @@ void uiObjFileMan::createDefaultUI( bool withreloc, bool withrm, bool multisel )
     auto* savebut = new uiToolButton( notesgrp, "save", tr("Save Notes"),
 				      mCB(this,uiObjFileMan,saveNotes) );
     savebut->attach( rightTo, notesfld_ );
-
-    setPrefWidth( cPrefWidth );
 
     auto* sep = new uiSplitter( this, "List-Info splitter", false );
     sep->addGroup( listgrp_ );
@@ -249,6 +245,7 @@ void uiObjFileMan::selChg( CallBacker* )
     curimplexists_ = curioobj_ && curioobj_->implExists(true);
 
     ownSelChg();
+    updateRemoteLinkEntryStatus();
     if ( curioobj_ )
 	mkFileInfo();
     else
@@ -437,13 +434,6 @@ void uiObjFileMan::getFileSizeString( const IOStream& iostrm,
 void uiObjFileMan::setInfo( const char* txt )
 {
     infofld_->setText( txt );
-}
-
-
-void uiObjFileMan::setPrefWidth( int width )
-{
-    selgrp_->setPrefWidthInChar( mCast(float,width) );
-    infofld_->setPrefWidthInChar( width );
 }
 
 

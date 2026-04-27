@@ -134,8 +134,9 @@ static bool testUseJSON( bool created, bool allowmixed )
     mRunStandardTest( point3.valType()==OD::JSON::ValueSet::Data,
 			       "array type" );
 
-    const Coord3 coord = point3.getCoord3();
-    mRunStandardTest( coord==Coord3(8.,53.7419173548,0.), "coordinate value" );
+    Coord3 coord;
+    mRunStandardTest( point3.get( coord ) &&
+		      coord==Coord3(8.,53.7419173548,0.), "coordinate value" );
 
     return true;
 }
@@ -155,16 +156,6 @@ static Array* createFeatCoordArray( Array* featarr,
     geomobj->set( "type", typ );
 
     return geomobj->set( "coordinates", new Array(false) );
-}
-
-
-static void addCoords( const TypeSet<Coord3>& coords, Array& poly )
-{
-    for ( const auto& coord : coords )
-    {
-	Array* coordarr = poly.add( new Array(Number) );
-        coordarr->add( coord.x_ ).add( coord.y_ ).add( coord.z_ );
-    }
 }
 
 
@@ -194,25 +185,16 @@ static bool testCreateJSON()
     Array* featarr = topobj.set( "features", new Array(true) );
     Array* polyarr = createFeatCoordArray( featarr, "Z3NAM1982A", "F3_Demo_d30",
 					   "Polygon" );
-    Array* poly = polyarr->add( new Array(false) );
-
-    // Once via TypeSet<double> for test
-    Array* coord = poly->add( new Array(Number) );
-    TypeSet<NumberType> cvals;
-    cvals += 7; cvals += 55.0554844553; cvals += 0.0;
-    coord->set( cvals );
-
-    // Once via TypeSet for test
     TypeSet<Coord3> coords;
+    coords += Coord3( 7, 55.0554844553, 0 );
     coords += Coord3( 6, 55.0556671475, 0 );
     coords += Coord3( 6, 54.9236026526, 0 );
     coords += Coord3( 7, 54.9229699809, 0 );
     coords += Coord3( 7, 55.0554844553, 0 );
-    addCoords( coords, *poly );
+    polyarr->add( coords );
 
     polyarr = createFeatCoordArray( featarr, "Z3GDF2010A", "MagellanesBasin",
 					   "Polygon" );
-    poly = polyarr->add( new Array(false) );
     coords.setEmpty();
     coords += Coord3( 9, 53.8820024932, 0 );
     coords += Coord3( 7, 53.877063624,  0 );
@@ -220,7 +202,7 @@ static bool testCreateJSON()
     coords += Coord3( 8, 53.7419173548, 0 );
     coords += Coord3( 9, 53.7461123222, 0 );
     coords += Coord3( 9, 53.8820024932, 0 );
-    addCoords( coords, *poly );
+    polyarr->add( coords );
 
     delete jsontree;
     jsontree = topobj.clone();
@@ -307,7 +289,7 @@ bool testArray1D()
     logStream() << "\ndump 1D array json:\n" << jsStr << '\n' << od_endl;
 
     BufferString teststr( "[0,2,4,6]" );
-    OD::JSON::Array jsarr_in( false );
+    OD::JSON::Array jsarr_in( OD::JSON::INumber );
     uiRetVal uirv = jsarr_in.parseJSon( teststr.getCStr(), teststr.size() );
     mRunStandardTestWithError( uirv.isOK(),
 			      "Parse an array string into a JSON::Array",

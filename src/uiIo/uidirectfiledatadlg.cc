@@ -16,6 +16,7 @@ ________________________________________________________________________
 #include "transl.h"
 
 #include "uifileinput.h"
+#include "uifilesel.h"
 #include "uilabel.h"
 #include "uimsg.h"
 
@@ -68,8 +69,8 @@ void uiEditDirectFileDataDlg::createInterface()
 			 .arg(dispnm).arg(fp.fullPath().buf());
 
     lbl = new uiLabel( this, oldfiletxt );
-    const uiFileDialog::Mode mode = nrfiles > 1 ? uiFileDialog::Directory
-						: uiFileDialog::ExistingFile;
+    const OD::FileSelectionMode mode = nrfiles > 1 ? OD::SelectDirectory
+						   : OD::SelectFileForRead;
     const uiString newloctxt = nrfiles > 1
 				    ? tr("Specify new location for %1 files")
 					 .arg(dispnm)
@@ -105,10 +106,11 @@ void uiEditDirectFileDataDlg::createInterface()
     else
 	fientry = fp.fullPath();
 
-    selfld_ = new uiFileInput( this, newloctxt, fientry );
-    selfld_->setSelectMode( mode );
+    uiFileSel::Setup fisu( fientry );
+    fisu.selmode( mode );
+    selfld_ = new uiFileSel( this, newloctxt, fisu );
     selfld_->setObjType( tr("Location") );
-    selfld_->valueChanged.notify( mCB(this,uiEditDirectFileDataDlg,dirSelCB) );
+    selfld_->newSelection.notify( mCB(this,uiEditDirectFileDataDlg,dirSelCB) );
     selfld_->attach( leftAlignedBelow, lbl );
 }
 

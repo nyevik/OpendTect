@@ -2531,9 +2531,19 @@ public:
     uiString	uiNrDoneText() const override
 		{ return ParallelTask::sTrcFinished(); }
 
+    void	setParentTask( Task* parenttask )
+		{ parenttask_ = parenttask; }
+
 protected:
 
     od_int64	nrIterations() const override	{ return totalnr_; }
+    bool	shouldContinue() override
+		{
+		    if ( parenttask_ )
+			return parenttask_->shouldContinue();
+
+		    return Task::shouldContinue();
+		}
 
 private:
 
@@ -2557,6 +2567,12 @@ private:
 
 		    for ( od_int64 idx=start; idx<=stop; idx++ )
 		    {
+			if ( (idx-start)%1024 == 0 && !shouldContinue() )
+			{
+			    delete hiter;
+			    return false;
+			}
+
 			if ( trcssampling_.isValid(idx,tks_) )
 			{
 			    if ( hasarrayptr ) outpptr+=nrtrcsp;
@@ -2593,6 +2609,7 @@ private:
     const PosInfo::CubeData&	trcssampling_;
     const TrcKeySampling&	tks_;
     Array3D<T>&			outp_;
+    Task*			parenttask_ = nullptr;
 
     const od_int64		totalnr_;
 };

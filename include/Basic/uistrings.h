@@ -591,6 +591,7 @@ public:
     static uiString sScene(int n=1)	{ return tr("Scene",0,n); }
     static uiString sScenes()		{ return sScene(mPlural); }
     static uiString sSec(int n=1)	{ return tr("Second",0,n); }
+    static uiString sSeed(int n=1)	{ return tr("Seed",0,n); }
     static uiString sSEGY()		{ return tr("SEG-Y"); }
     static uiString sSeismic(int n=1);
     static uiString sSeismicData()	{ return tr("Seismic Data"); }

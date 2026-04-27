@@ -122,7 +122,6 @@ public:
 	mDefSetupMembInit(bool,withinserters,true);
 	mDefSetupMembInit(bool,withwriteopts,true);
 	mDefSetupMembInit(bool,confirmoverwrite,true);
-	mDefSetupMembInit(bool,resizelbwidth,true);
 	mDefSetupMemb(BufferString,withctxtfilter);
 	mDefSetupMemb(BufferStringSet,trsnotallwed);
 	//!<key can be either a translator group name or omf metadata key
@@ -159,7 +158,7 @@ public:
     void		setCurrent(const MultiID&);
     void		setChosen(int,bool yn=true);
     void		setChosen(const TypeSet<MultiID>&);
-    void		setIsBad(int);
+    void		setIsBad(int,bool yn=true);
     bool		isEntryOK(const MultiID&) const;
     void		chooseAll(bool yn=true);
     const TypeSet<MultiID>&	getIOObjIds() const;
@@ -238,6 +237,7 @@ protected:
     void		triggerStatusMsg(const char*);
 
     void		initGrpCB(CallBacker*);
+    void		preInitGrpCB(CallBacker*);
     void		setInitial(CallBacker*);
     void		selChg(CallBacker*);
     void		choiceChg(CallBacker*);

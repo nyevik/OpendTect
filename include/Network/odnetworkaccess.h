@@ -24,8 +24,6 @@ class TaskRunner;
 
 namespace Network
 {
-    class HttpRequestProcess;
-
 /*!< Functions to download/upload one or more files/data using HTTP protocol*/
 
     mGlobal(Network) uiRetVal downloadFile(const char* url,const char* outpath,
@@ -40,9 +38,6 @@ namespace Network
 					    BufferStringSet& outpaths,
 					    TaskRunner* =nullptr,
 					    bool canfail =false);
-
-    mGlobal(Network) uiRetVal downloadToString(const char* url,BufferString&,
-						TaskRunner* =nullptr);
 
     mGlobal(Network) bool   uploadFile(const char* url,const char* localfname,
 				       const char* remotefname,
@@ -84,12 +79,21 @@ namespace Network
 
 				// File:: counterparts
     mGlobal(Network) bool	exists(const char*);
-    mGlobal(Network) od_int64	getFileSize(const char*);
-    mGlobal(Network) bool	getContent(const char*,BufferString&);
+    mGlobal(Network) od_int64	getFileSize(const char*,uiString* errmsg);
+    mGlobal(Network) bool	getContent(const char*,BufferString&,
+					   uiString* errmsg,
+					   TaskRunner* =nullptr);
+    mGlobal(Network) bool	putContent(const char* buf,int sz,
+					   const char* url,uiString* errmsg,
+					   TaskRunner* =nullptr);
 
-    mDeprecated("Use downloadToString")
-	mGlobal(Network) uiRetVal downloadToBuffer(const char* url,DataBuffer&,
-						   TaskRunner* =nullptr);
+    mDeprecated("Use getContent")
+    mGlobal(Network) uiRetVal downloadToString(const char* url,BufferString&,
+					       TaskRunner* =nullptr);
+
+    mDeprecated("Use getContent")
+    mGlobal(Network) uiRetVal downloadToBuffer(const char* url,DataBuffer&,
+					       TaskRunner* =nullptr);
 
 } // namespace Network
 

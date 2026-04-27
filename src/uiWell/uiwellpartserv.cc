@@ -308,6 +308,7 @@ void uiWellPartServer::importReadyCB( CallBacker* cb )
     {
 	crwellids_.erase();
 	crwellids_.add( uiwellimpdlg_->getWellID() );
+	dispwellids_ = crwellids_;
 	sendEvent( evDisplayWell() );
     }
 }
@@ -570,6 +571,16 @@ void uiWellPartServer::displayIn2DViewer( const MultiID& mid )
 }
 
 
+bool uiWellPartServer::displayWellsIn3D( const TypeSet<MultiID>& wellids )
+{
+    if ( wellids.isEmpty() )
+	return false;
+
+    dispwellids_ = wellids;
+    return sendEvent( evDisplayWell() );
+}
+
+
 bool uiWellPartServer::hasLogs( const MultiID& wellid ) const
 {
     ConstRefMan<Well::Data> wd = Well::MGR().get( wellid,
@@ -677,7 +688,10 @@ void uiWellPartServer::simpleImpDlgClosed( CallBacker* )
 	return;
 
     if ( impsimpledlg_->wantDisplay() )
+    {
+	dispwellids_ = crwellids_;
 	sendEvent( evDisplayWell() );
+    }
 
     if ( !manwelldlg_ )
 	return;

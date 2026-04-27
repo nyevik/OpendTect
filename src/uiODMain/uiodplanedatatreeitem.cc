@@ -807,7 +807,7 @@ uiTreeItem* uiODCrosslineTreeItemFactory::createForVis( const VisID& visid,
 {
     ConstRefMan<visBase::DataObject> dispobj =
 		ODMainWin()->applMgr().visServer()->getObject( visid );
-    mDynamicCastGet(const visSurvey::PlaneDataDisplay*,pdd,dispobj.ptr() );
+    mDynamicCastGet(const visSurvey::PlaneDataDisplay*,pdd,dispobj.ptr());
     if ( !pdd || pdd->getOrientation() != OD::SliceType::Crossline )
 	return nullptr;
 
@@ -870,7 +870,7 @@ uiTreeItem* uiODZsliceTreeItemFactory::createForVis( const VisID& visid,
 {
     ConstRefMan<visBase::DataObject> dispobj =
 		ODMainWin()->applMgr().visServer()->getObject( visid );
-    mDynamicCastGet(const visSurvey::PlaneDataDisplay*,pdd,dispobj.ptr() );
+    mDynamicCastGet(const visSurvey::PlaneDataDisplay*,pdd,dispobj.ptr());
     if ( !pdd || pdd->getOrientation() != OD::SliceType::Z )
 	return nullptr;
 
@@ -919,8 +919,7 @@ bool uiODZsliceParentTreeItem::showSubMenu()
 
 uiODZsliceTreeItem::uiODZsliceTreeItem( const VisID& id, Type tp )
     : uiODPlaneDataTreeItem( id, OD::SliceType::Z, tp )
-{
-}
+{}
 
 
 uiODZsliceTreeItem::~uiODZsliceTreeItem()

@@ -15,6 +15,7 @@ ________________________________________________________________________
 
 class ODTableView;
 class ODStyledItemDelegate;
+class ODUndoCommand;
 class QByteArray;
 class QSortFilterProxyModel;
 
@@ -61,15 +62,34 @@ public:
     void			sortByColumn(int col,bool asc=true);
 
     void			setRowHidden(int row,bool);
+    void			setRowsHidden(const TypeSet<int>&,bool);
     bool			isRowHidden(int row) const;
     void			getVisibleRows(TypeSet<int>&,
 					       bool mappedtosource) const;
     void			setColumnHidden(int col,bool);
+    void			setColumnsHidden(const TypeSet<int>&,bool);
     bool			isColumnHidden(int col) const;
     void			getVisibleColumns(TypeSet<int>&,
 					       bool mappedtosource) const;
     void			setHeaderVisible(OD::Orientation,bool yn);
     bool			isHeaderVisible(OD::Orientation) const;
+
+    void			setRowsAndColsHidden(const TypeSet<int>& rows,
+						     const TypeSet<int>& cols,
+						     bool);
+    void			setRowsVisibility(const TypeSet<int>& showrows,
+						  const TypeSet<int>& hiderows);
+    void			setColumnsVisibility(
+						  const TypeSet<int>& showcols,
+						  const TypeSet<int>& hidecols);
+    void			enableUndo(bool yn);
+    bool			isUndoEnabled() const;
+    void			clearUndo();
+    void			markUndoBaseline();
+    void			beginUndoGroup();
+    void			endUndoGroup();
+    void			undo();
+    void			redo();
 
     RowCol			mapFromSource(const RowCol&) const;
 				// source model to filter model
@@ -116,6 +136,7 @@ public:
     Notifier<uiTableView>			doubleClicked;
     Notifier<uiTableView>			rightClicked;
     Notifier<uiTableView>			selectionChanged;
+    Notifier<uiTableView>			undoRedoHappened;
     CNotifier<uiTableView,int>			columnClicked;
     CNotifier<uiTableView,int>			rowClicked;
 
@@ -125,11 +146,18 @@ protected:
     ODStyledItemDelegate*	getColumnDelegate(int col,TableModel::CellType,
 						  char format='g',
 						  int precision=6);
+    void			doHideRow(int row,bool,
+					  ODUndoCommand* parent);
+    void			doHideColumn(int col,bool,
+					  ODUndoCommand* parent);
+    void			editRequestCB(CallBacker*);
 
-    TableModel*			tablemodel_	= nullptr;
+    TableModel*			tablemodel_		= nullptr;
     ODTableView*		odtableview_;
-    QSortFilterProxyModel*	qproxymodel_	= nullptr;
+    QSortFilterProxyModel*	qproxymodel_		= nullptr;
     QByteArray*			horizontalheaderstate_	= nullptr;
+    bool			enableundo_		= true;
+    ODUndoCommand*		activeundogroup_	= nullptr;
 
     ObjectSet<ODStyledItemDelegate>	columndelegates_;
 

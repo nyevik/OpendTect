@@ -13,7 +13,7 @@ ________________________________________________________________________
 #include "color.h"
 #include "odcommonenums.h"
 #include "pixmapdesc.h"
-
+#include "callback.h"
 
 class QAbstractTableModel;
 class ODAbstractTableModel;
@@ -21,9 +21,10 @@ class QByteArray;
 class QSortFilterProxyModel;
 class QVariant;
 
-mExpClass(General) TableModel
+mExpClass(General) TableModel : public CallBacker
 {
 public:
+
     mExpClass(General) CellData
     {
     public:
@@ -47,8 +48,28 @@ public:
 	void		setISODateTime(const char*);
 
 	CellData&	operator=(const CellData&);
+	bool		operator==(const CellData&) const;
+	bool		operator!=(const CellData&) const;
 
 	QVariant&	qvar_;
+    };
+
+    mExpClass(General) EditRequest
+    {
+    public:
+				EditRequest(int row,int col,
+					    const CellData& oldval,
+					    const CellData& newval,
+					    int role);
+	bool			operator==(const EditRequest&) const;
+	bool			operator!=(const EditRequest&) const;
+
+	int			row_		= -1;
+	int			col_		= -1;
+	CellData		oldval_;
+	CellData		newval_;
+	int			role_		= 0;
+	mutable bool		handled_	= false;
     };
 
     enum ItemFlag		{ NoFlags=0, ItemSelectable=1, ItemEditable=2,
@@ -85,8 +106,19 @@ public:
     void			beginReset();
     void			endReset();
 
+    bool			collectEditRequests(const EditRequest&,
+					    TypeSet<EditRequest>& relatedreqs);
+    bool			applyEditRequest(const EditRequest&,
+						 bool useoldval);
+
+    CNotifier<TableModel,const EditRequest&>	editRequested;
+
 protected:
+
 				TableModel();
+
+    void			rowBulkDataChanged(int row,
+					    const TypeSet<int>& changedcols);
 
     ODAbstractTableModel*	odtablemodel_;
 };

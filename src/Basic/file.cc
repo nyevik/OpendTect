@@ -663,7 +663,7 @@ bool copy( const char* from, const char* to, bool preserve,
     }
 
     const auto& cpfsa = !fromfsa.isLocal() ? fromfsa : tofsa;
-    const bool res = cpfsa.copy( fromfnm, to, preserve, errmsg );
+    const bool res = cpfsa.copy( fromfnm, to, preserve, errmsg, taskrun );
 
     return res;
 }
@@ -862,7 +862,8 @@ bool setSystemFileAttrib( const char* fnm, bool yn )
 }
 
 
-bool getContent( const char* fnm, BufferString& txt )
+bool getContent( const char* fnm, BufferString& txt, uiString* errmsg,
+		 TaskRunner* taskrun )
 {
     if ( !exists(fnm) )
 	return false;
@@ -872,23 +873,25 @@ bool getContent( const char* fnm, BufferString& txt )
 	return false;
 
     const auto& fsa = OD::FileSystemAccess::get( fnm );
-    return fsa.getContent( fnm, txt );
+    return fsa.getContent( fnm, txt, errmsg, taskrun );
 }
 
 
-bool putContent( const OD::String& str, const char* tofnm )
+bool putContent( const OD::String& str, const char* tofnm, uiString* errmsg,
+		 TaskRunner* taskrun )
 {
-    return putContent( str.buf(), str.size(), tofnm );
+    return putContent( str.buf(), str.size(), tofnm, errmsg, taskrun );
 }
 
 
-bool putContent( const char* buf, int sz, const char* tofnm )
+bool putContent( const char* buf, int sz, const char* tofnm, uiString* errmsg,
+		 TaskRunner* taskrun )
 {
     if ( !isSane(tofnm) || sz < 0 )
 	return false;
 
     const auto& fsa = OD::FileSystemAccess::get( tofnm );
-    return fsa.putContent( buf, sz, tofnm );
+    return fsa.putContent( buf, sz, tofnm, errmsg, taskrun );
 }
 
 
@@ -907,10 +910,10 @@ bool isEmpty( const char* fnm )
 }
 
 
-od_int64 getFileSize( const char* fnm, bool followlink )
+od_int64 getFileSize( const char* fnm, bool followlink, uiString* errmsg )
 {
     const auto& fsa = OD::FileSystemAccess::get( fnm );
-    return fsa.getFileSize( fnm, followlink );
+    return fsa.getFileSize( fnm, followlink, errmsg );
 }
 
 

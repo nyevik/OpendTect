@@ -250,6 +250,15 @@ const UnitOfMeasure* EMObject::surveyDisplayUnit() const
 }
 
 
+void EMObject::cleanSurveyZUnits()
+{
+    depthstorageunit_ = nullptr;
+    depthdisplayunit_ = nullptr;
+    timestorageunit_ = nullptr;
+    timedisplayunit_ = nullptr;
+}
+
+
 void EMObject::convertZValues( const UnitOfMeasure* zunit,
 			       bool from, bool parallel )
 {

@@ -91,6 +91,13 @@ static const IOStream* getIOStream( const IOObj& ioobj )
 }
 
 
+static bool isRemoteObj( const IOObj& ioobj )
+{
+    const SeisIOObjInfo objinfo( ioobj );
+    return !objinfo.isLocal();
+}
+
+
 #define mHelpID is2d ? mODHelpKey(mSeisFileMan2DHelpID) : \
 		       mODHelpKey(mSeisFileMan3DHelpID)
 uiSeisFileMan::uiSeisFileMan( uiParent* p, bool is2d )
@@ -191,10 +198,30 @@ void uiSeisFileMan::checkAllEntriesOK()
 	    continue;
 	}
 
+	if ( isRemoteObj(*obj) )
+	    continue;
+
 	const SeisIOObjInfo objinfo( obj.ptr() );
 	if ( !objinfo.isOK(true) )
 	    selgrp_->setIsBad( idx );
     }
+}
+
+
+void uiSeisFileMan::updateRemoteLinkEntryStatus()
+{
+    if ( !selgrp_ || !curioobj_ || !isRemoteObj(*curioobj_) )
+	return;
+
+    const MultiID curid( curioobj_->key() );
+    uiUserShowWait usw( this, tr("Checking linked seismic data") );
+    const SeisIOObjInfo objinfo( curioobj_ );
+    const bool isok = objinfo.isOK( true );
+    const int idx = selgrp_->getIOObjIds().indexOf( curid );
+    if ( idx < 0 )
+	return;
+
+    selgrp_->setIsBad( idx, !isok );
 }
 
 
@@ -544,7 +571,8 @@ void uiSeisFileMan::getBasicFileInfo( BufferString& txt ) const
     fp.set( fname );
     txt.add("\nLocation: ").add( fp.pathOnly() );
     const SeisIOObjInfo seisobjinfo( curioobj_ );
-    if ( !seisobjinfo.isOK() )
+    const bool isremotelink = !seisobjinfo.isLocal();
+    if ( !isremotelink && !seisobjinfo.isOK() )
 	return;
 
     BufferStringSet filenames;
