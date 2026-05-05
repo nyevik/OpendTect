@@ -874,7 +874,26 @@ ConstRefMan<RegularSeisDataPack> uiAttribPartServer::create2DOutputRM(
 	    ConstPtrMan<IOObj> ioobj = IOM().get( mid );
 	    if ( ioobj )
 	    {
-		Seis::SequentialReader rdr( *ioobj, &tkzs );
+		TypeSet<int> selcomps;
+		BufferStringSet complist;
+		SeisIOObjInfo::getCompNames( mid, complist );
+
+		const IOPar& pars = ioobj->pars();
+		bool issteering = false;
+		BufferString typestr;
+		issteering = pars.get( sKey::Type(), typestr ) &&
+			     typestr == sKey::Steering();
+
+		if ( issteering )
+		    selcomps.add( 1 );
+		else
+		{
+		    Attrib::DescID attribid = getStoredID( mid, true );
+		    handleMultiComp( mid, true, issteering,
+				     complist, attribid, selcomps );
+		}
+
+		Seis::SequentialReader rdr( *ioobj, &tkzs, &selcomps );
 		if ( !TaskRunner::execute(taskr,rdr) )
 		{
 		    uiMSG().error( rdr.uiMessage() );
@@ -1289,7 +1308,7 @@ RefMan<RandomSeisDataPack> uiAttribPartServer::createRdmTrcsOutputRM(
 						const Interval<float>& zrg,
 						const RandomLineID& rdlid )
 {
-    RefMan<Geometry::RandomLine> rdmline = Geometry::RLM().get( rdlid );
+    const Geometry::RandomLine* rdmline = Geometry::RLM().get( rdlid );
     if ( !rdmline )
 	return nullptr;
 
@@ -1349,7 +1368,9 @@ RefMan<RandomSeisDataPack> uiAttribPartServer::createRdmTrcsOutputRM(
 	{
 	    const int trcidx = output.find( trckeys[idy].position() );
 	    const SeisTrc* trc = trcidx<0 ? nullptr : output.get( trcidx );
-	    if ( !trc ) continue;
+	    if ( !trc )
+		continue;
+
 	    for ( int idz=0; idz<newpack->data(idx).info().getSize(2);idz++)
 		newpack->data(idx).set( 0, idy, idz, trc->get(idz,idx) );
 	}
